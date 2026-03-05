@@ -38,9 +38,15 @@ void USBHostManager::pushListener(USBListener * usbListener) { // If anything ne
 
 // Host manager should call tuh_task as fast as possible
 void USBHostManager::process() {
-    if ( tuh_ready ){
-        tryHubRecovery();
-        tuh_task();
+    if ( !tuh_ready ) return;
+    tryHubRecovery();
+    tuh_task();
+    // Workaround for devices behind USB hub: when something is connected (e.g. hub) but no HID has
+    // appeared yet, run tuh_task() multiple times so hub status and enumeration get processed
+    // without waiting for the next main loop iteration (avoids missing or delayed hub port events).
+    if ( _mounted_device_count > 0 && _mounted_hid_count == 0 ) {
+        for ( int i = 0; i < USB_HOST_HUB_POLL_EXTRA_TASKS; i++ )
+            tuh_task();
     }
 }
 

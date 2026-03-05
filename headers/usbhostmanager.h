@@ -13,9 +13,14 @@
 // USB Host manager decides on TinyUSB Host driver
 usbh_class_driver_t const* usbh_app_driver_get_cb(uint8_t *driver_count);
 
-// When a hub is connected but no HID appears for this long, re-init host to recover (workaround for hub IRQ stall)
+// When a hub is connected but no HID appears for this long, re-init host to recover (workaround for hub IRQ stall).
+// Use a longer timeout so slow hub/device enumeration can complete before we give up.
 #ifndef USB_HOST_HUB_RECOVERY_TIMEOUT_MS
-#define USB_HOST_HUB_RECOVERY_TIMEOUT_MS  5000
+#define USB_HOST_HUB_RECOVERY_TIMEOUT_MS  15000
+#endif
+// Extra tuh_task() calls per process() when a hub is connected but no HID yet (workaround: give hub enumeration more CPU)
+#ifndef USB_HOST_HUB_POLL_EXTRA_TASKS
+#define USB_HOST_HUB_POLL_EXTRA_TASKS  8
 #endif
 
 class USBHostManager {
