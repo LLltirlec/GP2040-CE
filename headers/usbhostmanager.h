@@ -13,14 +13,17 @@
 // USB Host manager decides on TinyUSB Host driver
 usbh_class_driver_t const* usbh_app_driver_get_cb(uint8_t *driver_count);
 
+// Delay before starting USB host so hub has time to power up (workaround for hubs that need settling).
+#ifndef USB_HOST_HUB_STARTUP_DELAY_MS
+#define USB_HOST_HUB_STARTUP_DELAY_MS     300
+#endif
 // When a hub is connected but no HID appears for this long, re-init host to recover (workaround for hub IRQ stall).
-// Use a longer timeout so slow hub/device enumeration can complete before we give up.
 #ifndef USB_HOST_HUB_RECOVERY_TIMEOUT_MS
 #define USB_HOST_HUB_RECOVERY_TIMEOUT_MS  15000
 #endif
-// Extra tuh_task() calls per process() when a hub is connected but no HID yet (workaround: give hub enumeration more CPU)
-#ifndef USB_HOST_HUB_POLL_EXTRA_TASKS
-#define USB_HOST_HUB_POLL_EXTRA_TASKS  8
+// First re-init attempt sooner when hub present but no HID (gives enumeration a second chance).
+#ifndef USB_HOST_HUB_EARLY_RECOVERY_MS
+#define USB_HOST_HUB_EARLY_RECOVERY_MS    4000
 #endif
 
 class USBHostManager {
@@ -51,7 +54,7 @@ private:
     void tryHubRecovery();
 
     USBHostManager() : tuh_ready(false), core0Ready(false), core1Ready(false),
-                       _mounted_device_count(0), _mounted_hid_count(0), _hub_recovery_timer_ms(0) {}
+                       _mounted_device_count(0), _mounted_hid_count(0), _hub_recovery_timer_ms(0), _hub_early_recovery_done(false) {}
     std::vector<USBListener*> listeners;
     usb_device_t *usb_device;
     uint8_t dataPin;
@@ -61,6 +64,7 @@ private:
     uint8_t _mounted_device_count;   // Any USB device (including hubs)
     uint8_t _mounted_hid_count;      // HID + XInput input devices
     uint32_t _hub_recovery_timer_ms; // When we started waiting for HID behind hub (0 = not waiting)
+    bool _hub_early_recovery_done;   // true after first early re-init attempt
 };
 
 #endif

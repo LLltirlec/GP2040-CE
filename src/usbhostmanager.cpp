@@ -4,6 +4,7 @@
 #include "eventmanager.h"
 
 #include "pico/time.h"
+#include "pico/stdlib.h"
 #include "pio_usb.h"
 #include "tusb.h"
 
@@ -15,6 +16,8 @@
 void USBHostManager::start() {
     // This will happen after Gamepad has initialized
     if (PeripheralManager::getInstance().isUSBEnabled(0) && listeners.size() > 0) {
+        // Give hub time to power up before we start host (workaround: some hubs need settling)
+        sleep_ms(USB_HOST_HUB_STARTUP_DELAY_MS);
         pio_usb_configuration_t* pio_cfg = PeripheralManager::getInstance().getUSB(0)->getController();
         tuh_configure(1, TUH_CFGID_RPI_PIO_USB_CONFIGURATION, pio_cfg);
         tuh_init(BOARD_TUH_RHPORT);
@@ -40,14 +43,14 @@ void USBHostManager::pushListener(USBListener * usbListener) { // If anything ne
 void USBHostManager::process() {
     if ( !tuh_ready ) return;
     tryHubRecovery();
-    tuh_task();
-    // Workaround for devices behind USB hub: when something is connected (e.g. hub) but no HID has
-    // appeared yet, run tuh_task() multiple times so hub status and enumeration get processed
-    // without waiting for the next main loop iteration (avoids missing or delayed hub port events).
-    if ( _mounted_device_count > 0 && _mounted_hid_count == 0 ) {
-        for ( int i = 0; i < USB_HOST_HUB_POLL_EXTRA_TASKS; i++ )
-            tuh_task();
-    }
+    // Drain the USB host event queue so hub status and enumeration complete (workaround for
+    // devices behind USB hub). Fixed extra calls when waiting for HID + drain until queue empty.
+    const int max_drain = 64; // cap to avoid blocking the main loop
+    int n = 0;
+    do {
+        tuh_task();
+        n++;
+    } while ( n < max_drain && tuh_task_event_ready() );
 }
 
 void USBHostManager::device_mounted() {
@@ -61,7 +64,7 @@ void USBHostManager::device_unmounted() {
 
 void USBHostManager::tryHubRecovery() {
     // Workaround: if something is connected (e.g. hub) but no HID device has appeared for a while,
-    // the hub's interrupt polling may have stalled; re-init the host to retry enumeration.
+    // re-init the host to retry enumeration. First attempt after EARLY_MS, then every RECOVERY_TIMEOUT_MS.
     if ( _mounted_device_count == 0 || _mounted_hid_count > 0 ) {
         _hub_recovery_timer_ms = 0;
         return;
@@ -69,13 +72,16 @@ void USBHostManager::tryHubRecovery() {
     uint32_t now_ms = to_ms_since_boot(get_absolute_time());
     if ( _hub_recovery_timer_ms == 0 )
         _hub_recovery_timer_ms = now_ms;
-    if ( (now_ms - _hub_recovery_timer_ms) < (uint32_t)USB_HOST_HUB_RECOVERY_TIMEOUT_MS )
+    uint32_t elapsed = now_ms - _hub_recovery_timer_ms;
+    uint32_t threshold = _hub_early_recovery_done ? (uint32_t)USB_HOST_HUB_RECOVERY_TIMEOUT_MS : (uint32_t)USB_HOST_HUB_EARLY_RECOVERY_MS;
+    if ( elapsed < threshold )
         return;
 
-    // Timeout: re-init USB host to recover from stuck hub
+    // Re-init USB host to give hub/downstream another chance
     _hub_recovery_timer_ms = 0;
     _mounted_device_count = 0;
     _mounted_hid_count = 0;
+    _hub_early_recovery_done = true;
 
     tuh_deinit(BOARD_TUH_RHPORT);
     pio_usb_configuration_t* pio_cfg = PeripheralManager::getInstance().getUSB(0)->getController();

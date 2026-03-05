@@ -149,6 +149,11 @@
 // Size of buffer to hold descriptors and other data used for enumeration
 #define CFG_TUH_ENUMERATION_BUFSIZE 512
 
+// Larger queue so hub + multiple devices don't drop events (default 16 can overflow during enumeration)
+#ifndef CFG_TUH_TASK_QUEUE_SZ
+#define CFG_TUH_TASK_QUEUE_SZ       32
+#endif
+
 #define CFG_TUH_HUB                 1
 // max device support (excluding hub device)
 #define CFG_TUH_DEVICE_MAX          (CFG_TUH_HUB ? 4 : 1) // hub typically has 4 ports

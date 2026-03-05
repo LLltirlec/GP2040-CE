@@ -347,6 +347,9 @@ void GP2040::run() {
 		// Post-Process Add-ons with USB Report Processed Sent
 		addons.PostprocessAddons(processed);
 
+		// Second USB Host process pass (single GPIO port: helps hub + downstream devices get more polling)
+		USBHostManager::getInstance().process();
+
 		// Check if we have a pending save
 		checkSaveRebootState();
 	}
