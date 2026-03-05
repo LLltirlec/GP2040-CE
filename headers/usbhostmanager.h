@@ -3,6 +3,7 @@
 
 #include "usblistener.h"
 #include <vector>
+#include <cstdint>
 
 #include "pio_usb.h"
 
@@ -11,6 +12,11 @@
 
 // USB Host manager decides on TinyUSB Host driver
 usbh_class_driver_t const* usbh_app_driver_get_cb(uint8_t *driver_count);
+
+// When a hub is connected but no HID appears for this long, re-init host to recover (workaround for hub IRQ stall)
+#ifndef USB_HOST_HUB_RECOVERY_TIMEOUT_MS
+#define USB_HOST_HUB_RECOVERY_TIMEOUT_MS  5000
+#endif
 
 class USBHostManager {
 public:
@@ -24,6 +30,8 @@ public:
     void shutdown();            // Called on system reboot
     void pushListener(USBListener *); // If anything needs to update in the gpconfig driver
     void process();
+    void device_mounted();      // Called from tuh_mount_cb (any device, including hubs)
+    void device_unmounted();    // Called from tuh_umount_cb
     void hid_mount_cb(uint8_t dev_addr, uint8_t instance, uint8_t const* desc_report, uint16_t desc_len);
     void hid_umount_cb(uint8_t daddr, uint8_t instance);
     void hid_report_received_cb(uint8_t dev_addr, uint8_t instance, uint8_t const* report, uint16_t len);
@@ -35,13 +43,19 @@ public:
     void xinput_report_sent_cb(uint8_t dev_addr, uint8_t instance, uint8_t const* report, uint16_t len);
     
 private:
-    USBHostManager() : tuh_ready(false), core0Ready(false), core1Ready(false) {}
+    void tryHubRecovery();
+
+    USBHostManager() : tuh_ready(false), core0Ready(false), core1Ready(false),
+                       _mounted_device_count(0), _mounted_hid_count(0), _hub_recovery_timer_ms(0) {}
     std::vector<USBListener*> listeners;
     usb_device_t *usb_device;
     uint8_t dataPin;
     bool tuh_ready;
     bool core0Ready;
     bool core1Ready;
+    uint8_t _mounted_device_count;   // Any USB device (including hubs)
+    uint8_t _mounted_hid_count;      // HID + XInput input devices
+    uint32_t _hub_recovery_timer_ms; // When we started waiting for HID behind hub (0 = not waiting)
 };
 
 #endif

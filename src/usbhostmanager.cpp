@@ -3,6 +3,7 @@
 #include "peripheralmanager.h"
 #include "eventmanager.h"
 
+#include "pico/time.h"
 #include "pio_usb.h"
 #include "tusb.h"
 
@@ -38,11 +39,47 @@ void USBHostManager::pushListener(USBListener * usbListener) { // If anything ne
 // Host manager should call tuh_task as fast as possible
 void USBHostManager::process() {
     if ( tuh_ready ){
+        tryHubRecovery();
         tuh_task();
     }
 }
 
+void USBHostManager::device_mounted() {
+    _mounted_device_count++;
+}
+
+void USBHostManager::device_unmounted() {
+    if ( _mounted_device_count > 0 )
+        _mounted_device_count--;
+}
+
+void USBHostManager::tryHubRecovery() {
+    // Workaround: if something is connected (e.g. hub) but no HID device has appeared for a while,
+    // the hub's interrupt polling may have stalled; re-init the host to retry enumeration.
+    if ( _mounted_device_count == 0 || _mounted_hid_count > 0 ) {
+        _hub_recovery_timer_ms = 0;
+        return;
+    }
+    uint32_t now_ms = to_ms_since_boot(get_absolute_time());
+    if ( _hub_recovery_timer_ms == 0 )
+        _hub_recovery_timer_ms = now_ms;
+    if ( (now_ms - _hub_recovery_timer_ms) < (uint32_t)USB_HOST_HUB_RECOVERY_TIMEOUT_MS )
+        return;
+
+    // Timeout: re-init USB host to recover from stuck hub
+    _hub_recovery_timer_ms = 0;
+    _mounted_device_count = 0;
+    _mounted_hid_count = 0;
+
+    tuh_deinit(BOARD_TUH_RHPORT);
+    pio_usb_configuration_t* pio_cfg = PeripheralManager::getInstance().getUSB(0)->getController();
+    tuh_configure(1, TUH_CFGID_RPI_PIO_USB_CONFIGURATION, pio_cfg);
+    tuh_init(BOARD_TUH_RHPORT);
+    sleep_us(10);
+}
+
 void USBHostManager::hid_mount_cb(uint8_t dev_addr, uint8_t instance, uint8_t const* desc_report, uint16_t desc_len) {
+    _mounted_hid_count++;
     if ( listeners.size() == 0 ) return;
     for( std::vector<USBListener*>::iterator it = listeners.begin(); it != listeners.end(); it++ ){
         (*it)->mount(dev_addr, instance, desc_report, desc_len);
@@ -50,6 +87,8 @@ void USBHostManager::hid_mount_cb(uint8_t dev_addr, uint8_t instance, uint8_t co
 }
 
 void USBHostManager::hid_umount_cb(uint8_t dev_addr, uint8_t instance) {
+    if ( _mounted_hid_count > 0 )
+        _mounted_hid_count--;
     if ( listeners.size() == 0 ) return;
     for( std::vector<USBListener*>::iterator it = listeners.begin(); it != listeners.end(); it++ ){
         (*it)->unmount(dev_addr);
@@ -78,6 +117,7 @@ void USBHostManager::hid_get_report_complete_cb(uint8_t dev_addr, uint8_t instan
 }
 
 void USBHostManager::xinput_mount_cb(uint8_t dev_addr, uint8_t instance, uint8_t controllerType, uint8_t subtype) {
+    _mounted_hid_count++;
     if ( listeners.size() == 0 ) return;
     for( std::vector<USBListener*>::iterator it = listeners.begin(); it != listeners.end(); it++ ){
         (*it)->xmount(dev_addr, instance, controllerType, subtype);
@@ -85,6 +125,8 @@ void USBHostManager::xinput_mount_cb(uint8_t dev_addr, uint8_t instance, uint8_t
 }
 
 void USBHostManager::xinput_umount_cb(uint8_t dev_addr) {
+    if ( _mounted_hid_count > 0 )
+        _mounted_hid_count--;
     if ( listeners.size() == 0 ) return;
     for( std::vector<USBListener*>::iterator it = listeners.begin(); it != listeners.end(); it++ ){
         (*it)->unmount(dev_addr);
@@ -114,6 +156,7 @@ void tuh_hid_mount_cb(uint8_t dev_addr, uint8_t instance, uint8_t const* desc_re
 }
 
 void tuh_mount_cb(uint8_t dev_addr) {
+    USBHostManager::getInstance().device_mounted();
     uint16_t vid, pid;
     if (!tuh_vid_pid_get(dev_addr, &vid, &pid)) {
         vid = 0xFFFF;
@@ -123,6 +166,7 @@ void tuh_mount_cb(uint8_t dev_addr) {
 }
 
 void tuh_umount_cb(uint8_t dev_addr) {
+    USBHostManager::getInstance().device_unmounted();
     uint16_t vid, pid;
     if (!tuh_vid_pid_get(dev_addr, &vid, &pid)) {
         vid = 0xFFFF;
