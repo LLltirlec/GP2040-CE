@@ -36,6 +36,8 @@ public:
 	}
     void start();               // Start USB Host
     void shutdown();            // Called on system reboot
+    // Call from core 1 setup so SOF timer runs on core 1 (avoids SOF stall when core 0 blocks in enum delays)
+    static void setPioUsbAlarmPool(void* alarm_pool);
     void pushListener(USBListener *); // If anything needs to update in the gpconfig driver
     void process();
     void device_mounted();      // Called from tuh_mount_cb (any device, including hubs)
@@ -65,6 +67,7 @@ private:
     uint8_t _mounted_hid_count;      // HID + XInput input devices
     uint32_t _hub_recovery_timer_ms; // When we started waiting for HID behind hub (0 = not waiting)
     bool _hub_early_recovery_done;   // true after first early re-init attempt
+    static void* _pio_usb_alarm_pool; // alarm pool created on core 1 for SOF timer
 };
 
 #endif

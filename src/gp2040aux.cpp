@@ -2,6 +2,7 @@
 #include "gp2040aux.h"
 #include "gamepad.h"
 
+#include "pico/time.h"
 #include "drivermanager.h"
 #include "storagemanager.h"
 #include "usbhostmanager.h"
@@ -45,6 +46,12 @@ void GP2040Aux::setup() {
 	addons.LoadAddon(new BuzzerSpeakerAddon());
 	addons.LoadAddon(new DRV8833RumbleAddon());
 	addons.LoadAddon(new ReactiveLEDAddon());
+
+	// Create PIO-USB SOF timer alarm pool on core 1 so SOF keeps running when core 0 blocks in hub enum delays
+	alarm_pool_t* pool = alarm_pool_create(2, 1);
+	if (pool != nullptr) {
+		USBHostManager::getInstance().setPioUsbAlarmPool(pool);
+	}
 
 	// Ready to sync Core0 and Core1
 	isReady = true;

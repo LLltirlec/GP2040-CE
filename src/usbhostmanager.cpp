@@ -13,12 +13,22 @@
 
 #include "drivers/shared/xinput_host.h"
 
+void* USBHostManager::_pio_usb_alarm_pool = nullptr;
+
+void USBHostManager::setPioUsbAlarmPool(void* alarm_pool) {
+    _pio_usb_alarm_pool = alarm_pool;
+}
+
 void USBHostManager::start() {
     // This will happen after Gamepad has initialized
     if (PeripheralManager::getInstance().isUSBEnabled(0) && listeners.size() > 0) {
         // Give hub time to power up before we start host (workaround: some hubs need settling)
         sleep_ms(USB_HOST_HUB_STARTUP_DELAY_MS);
         pio_usb_configuration_t* pio_cfg = PeripheralManager::getInstance().getUSB(0)->getController();
+        // Use alarm pool from core 1 so SOF timer keeps running when core 0 blocks in enum delays (hub workaround)
+        if (_pio_usb_alarm_pool != nullptr) {
+            pio_cfg->alarm_pool = _pio_usb_alarm_pool;
+        }
         tuh_configure(1, TUH_CFGID_RPI_PIO_USB_CONFIGURATION, pio_cfg);
         tuh_init(BOARD_TUH_RHPORT);
         sleep_us(10); // ensure we are ready
