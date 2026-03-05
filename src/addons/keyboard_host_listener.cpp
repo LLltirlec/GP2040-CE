@@ -51,12 +51,21 @@ void KeyboardHostListener::setup() {
   _keyboard_host_mapButtonA2.setKey(keyboardMapping.keyButtonA2);
   _keyboard_host_mapButtonA3.setKey(keyboardMapping.keyButtonA3);
   _keyboard_host_mapButtonA4.setKey(keyboardMapping.keyButtonA4);
+  _keyboard_host_mapLeftStickUp.setKey(static_cast<uint8_t>(keyboardMapping.keyLeftStickUp));
+  _keyboard_host_mapLeftStickDown.setKey(static_cast<uint8_t>(keyboardMapping.keyLeftStickDown));
+  _keyboard_host_mapLeftStickLeft.setKey(static_cast<uint8_t>(keyboardMapping.keyLeftStickLeft));
+  _keyboard_host_mapLeftStickRight.setKey(static_cast<uint8_t>(keyboardMapping.keyLeftStickRight));
+  _keyboard_host_mapRightStickUp.setKey(static_cast<uint8_t>(keyboardMapping.keyRightStickUp));
+  _keyboard_host_mapRightStickDown.setKey(static_cast<uint8_t>(keyboardMapping.keyRightStickDown));
+  _keyboard_host_mapRightStickLeft.setKey(static_cast<uint8_t>(keyboardMapping.keyRightStickLeft));
+  _keyboard_host_mapRightStickRight.setKey(static_cast<uint8_t>(keyboardMapping.keyRightStickRight));
 
   mouseLeftMapping = keyboardHostOptions.mouseLeft;
   mouseMiddleMapping = keyboardHostOptions.mouseMiddle;
   mouseRightMapping = keyboardHostOptions.mouseRight;
   mouseSensitivity = keyboardHostOptions.mouseSensitivity;
   mouseMovementMode = keyboardHostOptions.movementMode;
+  mouseYAxisAfterWheel = keyboardHostOptions.mouseYAxisAfterWheel;
   mouseSensitivityScale = mouseSensitivity / 10.0f;
   mouseResetMS = 16;
   mouseResetNextTimer = 0;
@@ -153,7 +162,7 @@ if ( _keyboard_host_mounted == false && _mouse_host_mounted == false )
   if ( _keyboard_host_mounted == true && _keyboard_dev_addr == dev_addr && _keyboard_instance == instance ) {
     process_kbd_report(dev_addr, (hid_keyboard_report_t const*) report );
   } else if ( _mouse_host_mounted == true && _mouse_dev_addr == dev_addr && _mouse_instance == instance) {
-    process_mouse_report(dev_addr, (hid_mouse_report_t const*) report );
+    process_mouse_report(dev_addr, report, len );
   }
 }
 
@@ -230,6 +239,24 @@ void KeyboardHostListener::process_kbd_report(uint8_t dev_addr, hid_keyboard_rep
           | ((keycode == _keyboard_host_mapButtonA3.key)  ? _keyboard_host_mapButtonA3.buttonMask  : _keyboard_host_state.buttons)
           | ((keycode == _keyboard_host_mapButtonA4.key)  ? _keyboard_host_mapButtonA4.buttonMask  : _keyboard_host_state.buttons)
         ;
+
+      // Left/right stick from keyboard (e.g. WASD for left stick)
+      if (_keyboard_host_mapLeftStickUp.isAssigned() && keycode == _keyboard_host_mapLeftStickUp.key)
+        _keyboard_host_state.ly = GAMEPAD_JOYSTICK_MIN;
+      else if (_keyboard_host_mapLeftStickDown.isAssigned() && keycode == _keyboard_host_mapLeftStickDown.key)
+        _keyboard_host_state.ly = GAMEPAD_JOYSTICK_MAX;
+      if (_keyboard_host_mapLeftStickLeft.isAssigned() && keycode == _keyboard_host_mapLeftStickLeft.key)
+        _keyboard_host_state.lx = GAMEPAD_JOYSTICK_MIN;
+      else if (_keyboard_host_mapLeftStickRight.isAssigned() && keycode == _keyboard_host_mapLeftStickRight.key)
+        _keyboard_host_state.lx = GAMEPAD_JOYSTICK_MAX;
+      if (_keyboard_host_mapRightStickUp.isAssigned() && keycode == _keyboard_host_mapRightStickUp.key)
+        _keyboard_host_state.ry = GAMEPAD_JOYSTICK_MIN;
+      else if (_keyboard_host_mapRightStickDown.isAssigned() && keycode == _keyboard_host_mapRightStickDown.key)
+        _keyboard_host_state.ry = GAMEPAD_JOYSTICK_MAX;
+      if (_keyboard_host_mapRightStickLeft.isAssigned() && keycode == _keyboard_host_mapRightStickLeft.key)
+        _keyboard_host_state.rx = GAMEPAD_JOYSTICK_MIN;
+      else if (_keyboard_host_mapRightStickRight.isAssigned() && keycode == _keyboard_host_mapRightStickRight.key)
+        _keyboard_host_state.rx = GAMEPAD_JOYSTICK_MAX;
     }
   }
 }
@@ -239,21 +266,31 @@ uint16_t KeyboardHostListener::scaleMouseToJoystick(int8_t mouseVal) {
   return std::clamp(result, GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32);
 }
 
-void KeyboardHostListener::process_mouse_report(uint8_t dev_addr, hid_mouse_report_t const * report)
+int32_t KeyboardHostListener::scaleMouseDeltaToJoystick(int8_t mouseVal) {
+  return static_cast<int32_t>(mouseVal) * mouseSensitivityScale * MOUSE_SCALE_FACTOR;
+}
+
+void KeyboardHostListener::process_mouse_report(uint8_t dev_addr, uint8_t const * report, uint16_t len)
 {
-  preprocess_report();
+  // HID report may include report_id as first byte (composite device). Boot mouse = 4 bytes (no ID).
+  // Layout: [report_id?] buttons, x, y [, wheel] -> offsets 0,1,2,3 or 1,2,3,4 if report_id present.
+  if (len < 3) return;
+  uint8_t const * data = (len >= 5) ? (report + 1) : report;
+  uint8_t buttons = data[0];
+  int8_t x = (int8_t)data[1];
+  // Some mice use layout buttons,x,wheel,y (Y in byte 3). Option mouseYAxisAfterWheel selects that.
+  int8_t y = mouseYAxisAfterWheel && (len >= 4) ? (int8_t)data[3] : (int8_t)data[2];
+  int8_t wheel = (len >= 4) ? (mouseYAxisAfterWheel ? (int8_t)data[2] : (int8_t)data[3]) : 0;
 
-  //------------- button state  -------------//
+  _keyboard_host_state.buttons = 0;
   _keyboard_host_state.buttons |=
-      (report->buttons & MOUSE_BUTTON_LEFT   ?   mouseLeftMapping : _keyboard_host_state.buttons)
-    | (report->buttons & MOUSE_BUTTON_MIDDLE ? mouseMiddleMapping : _keyboard_host_state.buttons)
-    | (report->buttons & MOUSE_BUTTON_RIGHT  ?  mouseRightMapping : _keyboard_host_state.buttons)
-  ;
+      (buttons & MOUSE_BUTTON_LEFT   ?   mouseLeftMapping : 0)
+    | (buttons & MOUSE_BUTTON_MIDDLE ? mouseMiddleMapping : 0)
+    | (buttons & MOUSE_BUTTON_RIGHT  ?  mouseRightMapping : 0);
 
-  //------------- cursor movement -------------//
-  mouseX = report->x;
-  mouseY = report->y;
-  mouseZ = report->wheel;
+  mouseX = x;
+  mouseY = y;
+  mouseZ = wheel;
   mouseActive = true;
 
   if (mouseMovementMode == MOUSE_MOVEMENT_NONE) {
@@ -262,12 +299,21 @@ void KeyboardHostListener::process_mouse_report(uint8_t dev_addr, hid_mouse_repo
 
   mouseResetNextTimer = getMillis() + mouseResetMS;
 
+  int32_t dx = scaleMouseDeltaToJoystick(x);
+  int32_t dy = scaleMouseDeltaToJoystick(y);
   if (mouseMovementMode == MOUSE_MOVEMENT_LEFT_ANALOG) {
-    _keyboard_host_state.lx = scaleMouseToJoystick(report->x);
-    _keyboard_host_state.ly = scaleMouseToJoystick(report->y);
+    _keyboard_host_state.lx = static_cast<uint16_t>(std::clamp(
+        static_cast<int32_t>(_keyboard_host_state.lx) + dx,
+        GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32));
+    _keyboard_host_state.ly = static_cast<uint16_t>(std::clamp(
+        static_cast<int32_t>(_keyboard_host_state.ly) + dy,
+        GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32));
   } else if (mouseMovementMode == MOUSE_MOVEMENT_RIGHT_ANALOG) {
-    _keyboard_host_state.rx = scaleMouseToJoystick(report->x);
-    _keyboard_host_state.ry = scaleMouseToJoystick(report->y);
+    _keyboard_host_state.rx = static_cast<uint16_t>(std::clamp(
+        static_cast<int32_t>(_keyboard_host_state.rx) + dx,
+        GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32));
+    _keyboard_host_state.ry = static_cast<uint16_t>(std::clamp(
+        static_cast<int32_t>(_keyboard_host_state.ry) + dy,
+        GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32));
   }
-
 }

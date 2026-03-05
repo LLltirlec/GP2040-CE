@@ -1101,10 +1101,20 @@ void ConfigUtils::initUnsetPropertiesWithDefaults(Config& config)
     INIT_UNSET_PROPERTY(config.addonOptions.keyboardHostOptions.mapping, keyButtonR3, KEY_BUTTON_R3);
     INIT_UNSET_PROPERTY(config.addonOptions.keyboardHostOptions.mapping, keyButtonA1, KEY_BUTTON_A1);
     INIT_UNSET_PROPERTY(config.addonOptions.keyboardHostOptions.mapping, keyButtonA2, KEY_BUTTON_A2);
+    // Left stick keys (default WASD), right stick keys (default 0 = unset)
+    INIT_UNSET_PROPERTY(config.addonOptions.keyboardHostOptions.mapping, keyLeftStickUp, HID_KEY_W);
+    INIT_UNSET_PROPERTY(config.addonOptions.keyboardHostOptions.mapping, keyLeftStickDown, HID_KEY_S);
+    INIT_UNSET_PROPERTY(config.addonOptions.keyboardHostOptions.mapping, keyLeftStickLeft, HID_KEY_A);
+    INIT_UNSET_PROPERTY(config.addonOptions.keyboardHostOptions.mapping, keyLeftStickRight, HID_KEY_D);
+    INIT_UNSET_PROPERTY(config.addonOptions.keyboardHostOptions.mapping, keyRightStickUp, 0);
+    INIT_UNSET_PROPERTY(config.addonOptions.keyboardHostOptions.mapping, keyRightStickDown, 0);
+    INIT_UNSET_PROPERTY(config.addonOptions.keyboardHostOptions.mapping, keyRightStickLeft, 0);
+    INIT_UNSET_PROPERTY(config.addonOptions.keyboardHostOptions.mapping, keyRightStickRight, 0);
     INIT_UNSET_PROPERTY(config.addonOptions.keyboardHostOptions, mouseLeft, 0);
     INIT_UNSET_PROPERTY(config.addonOptions.keyboardHostOptions, mouseMiddle, 0);
     INIT_UNSET_PROPERTY(config.addonOptions.keyboardHostOptions, mouseRight, 0);
     INIT_UNSET_PROPERTY(config.addonOptions.keyboardHostOptions, mouseSensitivity, KEYBOARD_HOST_MOUSE_SENSITIVITY);
+    INIT_UNSET_PROPERTY(config.addonOptions.keyboardHostOptions, mouseYAxisAfterWheel, false);
 
     // addonOptions.focusModeOptions
     INIT_UNSET_PROPERTY(config.addonOptions.focusModeOptions, enabled, !!FOCUS_MODE_ENABLED);

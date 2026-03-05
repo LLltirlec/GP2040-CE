@@ -38,8 +38,10 @@ private:
     uint8_t getKeycodeFromModifier(uint8_t modifier);
     void preprocess_report();
     void process_kbd_report(uint8_t dev_addr, hid_keyboard_report_t const *report);
-    void process_mouse_report(uint8_t dev_addr, hid_mouse_report_t const *report);
+    void process_mouse_report(uint8_t dev_addr, uint8_t const *report, uint16_t len);
     uint16_t scaleMouseToJoystick(int8_t mouseVal);
+    /** Return joystick-space delta for accumulation (so both X and Y work when reports may be split) */
+    int32_t scaleMouseDeltaToJoystick(int8_t mouseVal);
     KeyboardButtonMapping _keyboard_host_mapDpadUp;
     KeyboardButtonMapping _keyboard_host_mapDpadDown;
     KeyboardButtonMapping _keyboard_host_mapDpadLeft;
@@ -60,6 +62,15 @@ private:
     KeyboardButtonMapping _keyboard_host_mapButtonA2;
     KeyboardButtonMapping _keyboard_host_mapButtonA3;
     KeyboardButtonMapping _keyboard_host_mapButtonA4;
+    // Left/right stick from keyboard (e.g. WASD for left stick)
+    KeyboardButtonMapping _keyboard_host_mapLeftStickUp;
+    KeyboardButtonMapping _keyboard_host_mapLeftStickDown;
+    KeyboardButtonMapping _keyboard_host_mapLeftStickLeft;
+    KeyboardButtonMapping _keyboard_host_mapLeftStickRight;
+    KeyboardButtonMapping _keyboard_host_mapRightStickUp;
+    KeyboardButtonMapping _keyboard_host_mapRightStickDown;
+    KeyboardButtonMapping _keyboard_host_mapRightStickLeft;
+    KeyboardButtonMapping _keyboard_host_mapRightStickRight;
     GamepadState _keyboard_host_state;
     bool _keyboard_host_mounted;
     uint8_t _keyboard_dev_addr;
@@ -72,6 +83,7 @@ private:
     uint16_t mouseRightMapping;
     uint32_t mouseSensitivity;
     uint8_t mouseMovementMode;
+    bool mouseYAxisAfterWheel;
     float mouseSensitivityScale;
     uint32_t mouseResetMS;
     uint32_t mouseResetNextTimer;

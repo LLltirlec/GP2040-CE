@@ -1815,11 +1815,20 @@ std::string setAddonOptions()
     docToValue(keyboardHostOptions.mapping.keyButtonA2, doc, "keyboardHostMap", "A2");
     docToValue(keyboardHostOptions.mapping.keyButtonA3, doc, "keyboardHostMap", "A3");
     docToValue(keyboardHostOptions.mapping.keyButtonA4, doc, "keyboardHostMap", "A4");
+    docToValue(keyboardHostOptions.mapping.keyLeftStickUp, doc, "keyboardHostMap", "LeftStickUp");
+    docToValue(keyboardHostOptions.mapping.keyLeftStickDown, doc, "keyboardHostMap", "LeftStickDown");
+    docToValue(keyboardHostOptions.mapping.keyLeftStickLeft, doc, "keyboardHostMap", "LeftStickLeft");
+    docToValue(keyboardHostOptions.mapping.keyLeftStickRight, doc, "keyboardHostMap", "LeftStickRight");
+    docToValue(keyboardHostOptions.mapping.keyRightStickUp, doc, "keyboardHostMap", "RightStickUp");
+    docToValue(keyboardHostOptions.mapping.keyRightStickDown, doc, "keyboardHostMap", "RightStickDown");
+    docToValue(keyboardHostOptions.mapping.keyRightStickLeft, doc, "keyboardHostMap", "RightStickLeft");
+    docToValue(keyboardHostOptions.mapping.keyRightStickRight, doc, "keyboardHostMap", "RightStickRight");
     docToValue(keyboardHostOptions.mouseLeft, doc, "keyboardHostMouseLeft");
     docToValue(keyboardHostOptions.mouseMiddle, doc, "keyboardHostMouseMiddle");
     docToValue(keyboardHostOptions.mouseRight, doc, "keyboardHostMouseRight");
     docToValue(keyboardHostOptions.mouseSensitivity, doc, "keyboardHostMouseSensitivity");
     docToValue(keyboardHostOptions.movementMode, doc, "keyboardHostMouseMovement");
+    docToValue(keyboardHostOptions.mouseYAxisAfterWheel, doc, "keyboardHostMouseYAxisAfterWheel");
 
     GamepadUSBHostOptions& gamepadUSBHostOptions = Storage::getInstance().getAddonOptions().gamepadUSBHostOptions;
     docToValue(gamepadUSBHostOptions.enabled, doc, "GamepadUSBHostAddonEnabled");
@@ -2267,11 +2276,20 @@ std::string getAddonOptions()
     writeDoc(doc, "keyboardHostMap", "A2", keyboardHostOptions.mapping.keyButtonA2);
     writeDoc(doc, "keyboardHostMap", "A3", keyboardHostOptions.mapping.keyButtonA3);
     writeDoc(doc, "keyboardHostMap", "A4", keyboardHostOptions.mapping.keyButtonA4);
+    writeDoc(doc, "keyboardHostMap", "LeftStickUp", keyboardHostOptions.mapping.keyLeftStickUp);
+    writeDoc(doc, "keyboardHostMap", "LeftStickDown", keyboardHostOptions.mapping.keyLeftStickDown);
+    writeDoc(doc, "keyboardHostMap", "LeftStickLeft", keyboardHostOptions.mapping.keyLeftStickLeft);
+    writeDoc(doc, "keyboardHostMap", "LeftStickRight", keyboardHostOptions.mapping.keyLeftStickRight);
+    writeDoc(doc, "keyboardHostMap", "RightStickUp", keyboardHostOptions.mapping.keyRightStickUp);
+    writeDoc(doc, "keyboardHostMap", "RightStickDown", keyboardHostOptions.mapping.keyRightStickDown);
+    writeDoc(doc, "keyboardHostMap", "RightStickLeft", keyboardHostOptions.mapping.keyRightStickLeft);
+    writeDoc(doc, "keyboardHostMap", "RightStickRight", keyboardHostOptions.mapping.keyRightStickRight);
     writeDoc(doc, "keyboardHostMouseLeft", keyboardHostOptions.mouseLeft);
     writeDoc(doc, "keyboardHostMouseMiddle", keyboardHostOptions.mouseMiddle);
     writeDoc(doc, "keyboardHostMouseRight", keyboardHostOptions.mouseRight);
     writeDoc(doc, "keyboardHostMouseSensitivity", keyboardHostOptions.mouseSensitivity);
     writeDoc(doc, "keyboardHostMouseMovement", keyboardHostOptions.movementMode);
+    writeDoc(doc, "keyboardHostMouseYAxisAfterWheel", keyboardHostOptions.mouseYAxisAfterWheel);
 
     const GamepadUSBHostOptions& gamepadUSBHostOptions = Storage::getInstance().getAddonOptions().gamepadUSBHostOptions;
     writeDoc(doc, "GamepadUSBHostAddonEnabled", gamepadUSBHostOptions.enabled);

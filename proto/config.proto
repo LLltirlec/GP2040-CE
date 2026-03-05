@@ -74,6 +74,16 @@ message KeyboardMapping
     optional uint32 keyButtonE10 = 30;
     optional uint32 keyButtonE11 = 31;
     optional uint32 keyButtonE12 = 32;
+    // Left stick (e.g. WASD): Up, Down, Left, Right
+    optional uint32 keyLeftStickUp = 33;
+    optional uint32 keyLeftStickDown = 34;
+    optional uint32 keyLeftStickLeft = 35;
+    optional uint32 keyLeftStickRight = 36;
+    // Right stick: Up, Down, Left, Right
+    optional uint32 keyRightStickUp = 37;
+    optional uint32 keyRightStickDown = 38;
+    optional uint32 keyRightStickLeft = 39;
+    optional uint32 keyRightStickRight = 40;
 
 }
 
@@ -756,6 +766,8 @@ message KeyboardHostOptions
     optional uint32 mouseRight = 7;
     optional uint32 mouseSensitivity = 8;
     optional MouseMovementMode movementMode = 9;
+    // If true, mouse report layout is buttons,x,wheel,y (Y in byte 3). Default false = buttons,x,y,wheel.
+    optional bool mouseYAxisAfterWheel = 10;
 }
 
 message GamepadUSBHostOptions

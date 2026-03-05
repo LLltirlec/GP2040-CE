@@ -42,6 +42,7 @@ export const keyboardScheme = {
 		),
 	keyboardHostMouseSensitivity: yup.number().required().min(1).max(100),
 	keyboardHostMouseMovement: yup.string().required().oneOf(['0', '1', '2']),
+	keyboardHostMouseYAxisAfterWheel: yup.boolean(),
 };
 
 export const keyboardState = {
@@ -52,6 +53,7 @@ export const keyboardState = {
 	KeyboardHostAddonEnabled: 0,
 	keyboardHostMouseSensitivity: 0,
 	keyboardHostMouseMovement: 0,
+	keyboardHostMouseYAxisAfterWheel: false,
 };
 
 const excludedButtons = [
@@ -241,6 +243,17 @@ const Keyboard = ({
 								}}
 							/>
 						</div>
+					</div>
+					<div className="col-sm-12 mb-2">
+						<FormCheck
+							type="switch"
+							id="keyboardHostMouseYAxisAfterWheel"
+							label={t('AddonsConfig:keyboard-host-mouse-y-axis-after-wheel')}
+							checked={Boolean(values.keyboardHostMouseYAxisAfterWheel)}
+							onChange={(e) => {
+								setFieldValue('keyboardHostMouseYAxisAfterWheel', e.target.checked);
+							}}
+						/>
 					</div>
 				</Row>
 			</div>
