@@ -95,6 +95,7 @@
 
 # define TUH_OPT_RHPORT 1
 // CFG_TUSB_DEBUG is defined by compiler in DEBUG build
+// For hub status in release/CI build: open Web Config and GET /api/getUsbHostStatus (returns off/ready/hub_only/hid_ok).
 // #define CFG_TUSB_DEBUG           0
 
 /* USB DMA on some MCUs can only access a specific SRAM region with restriction on alignment.
@@ -138,7 +139,10 @@
 #endif
 
 //------------- CLASS -------------//
+// CDC can be enabled by build (e.g. USB_HOST_DEBUG) for stdio over USB serial
+#ifndef CFG_TUD_CDC
 #define CFG_TUD_CDC              0
+#endif
 #define CFG_TUD_ECM_RNDIS        1
 #define CFG_TUD_HID              2
 

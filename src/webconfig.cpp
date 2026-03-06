@@ -8,6 +8,7 @@
 #include "eventmanager.h"
 #include "layoutmanager.h"
 #include "peripheralmanager.h"
+#include "usbhostmanager.h"
 #include "animationstorage.h"
 #include "system.h"
 #include "config_utils.h"
@@ -2607,6 +2608,14 @@ std::string reboot() {
     return serialize_json(doc);
 }
 
+// USB host status for hub debugging (works in release build, no UART needed)
+std::string getUsbHostStatusApi() {
+    const size_t capacity = JSON_OBJECT_SIZE(2);
+    DynamicJsonDocument doc(capacity);
+    doc["usbHostStatus"] = USBHostManager::getInstance().getUsbHostStatus();
+    return serialize_json(doc);
+}
+
 // NEW API: return current raw ADC reading for the configured analog pins
 std:: string getJoystickCenter() {
     const size_t capacity = JSON_OBJECT_SIZE(10);
@@ -2743,6 +2752,7 @@ static const std::pair<const char*, HandlerFuncPtr> handlerFuncs[] =
     { "/api/abortGetHeldPins", abortGetHeldPins },
     { "/api/getUsedPins", getUsedPins },
     { "/api/getConfig", getConfig },
+    { "/api/getUsbHostStatus", getUsbHostStatusApi },
     { "/api/getJoystickCenter", getJoystickCenter },
     { "/api/getJoystickCenter2", getJoystickCenter2 },
 #if !defined(NDEBUG)

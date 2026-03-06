@@ -74,6 +74,13 @@ void USBHostManager::device_unmounted() {
         _mounted_device_count--;
 }
 
+const char* USBHostManager::getUsbHostStatus() const {
+    if ( !tuh_ready ) return "off";
+    if ( _mounted_hid_count > 0 ) return "hid_ok";
+    if ( _mounted_device_count > 0 ) return "hub_only";  // hub seen but no HID yet
+    return "ready";  // host up, nothing connected
+}
+
 void USBHostManager::tryHubRecovery() {
     // Workaround: if something is connected (e.g. hub) but no HID device has appeared for a while,
     // re-init the host to retry enumeration. First attempt after EARLY_MS, then every RECOVERY_TIMEOUT_MS.

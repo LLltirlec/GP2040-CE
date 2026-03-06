@@ -51,7 +51,10 @@ public:
     void xinput_umount_cb(uint8_t dev_addr);
     void xinput_report_received_cb(uint8_t dev_addr, uint8_t instance, uint8_t const* report, uint16_t len);
     void xinput_report_sent_cb(uint8_t dev_addr, uint8_t instance, uint8_t const* report, uint16_t len);
-    
+
+    // For debug without UART: returns short status string (e.g. "off", "ready", "hub_only", "hid_ok")
+    const char* getUsbHostStatus() const;
+
 private:
     void tryHubRecovery();
 

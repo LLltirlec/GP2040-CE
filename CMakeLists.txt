@@ -87,6 +87,9 @@ project(GP2040-CE LANGUAGES C CXX ASM VERSION ${CMAKE_GIT_REPO_VERSION})
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 
+# Optional: local debug only (TinyUSB logs to UART). For hub status in release build use Web Config: GET /api/getUsbHostStatus
+option(USB_HOST_DEBUG "Local dev: TinyUSB logs to UART (ignored in CI)" OFF)
+
 if(DEFINED ENV{SKIP_SUBMODULES})
   set(SKIP_SUBMODULES $ENV{SKIP_SUBMODULES})
 elseif(NOT DEFINED SKIP_SUBMODULES)
@@ -370,6 +373,11 @@ target_include_directories(${PROJECT_NAME}  PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}
     ${CMAKE_CURRENT_LIST_DIR}/.. # for our common lwipopts or any other standard includes, if required
   )
+
+if(USB_HOST_DEBUG)
+  target_compile_definitions(${PROJECT_NAME} PRIVATE CFG_TUSB_DEBUG=2)
+  pico_enable_stdio_uart(${PROJECT_NAME} 1)
+endif()
 
 pico_add_extra_outputs(${PROJECT_NAME})
 
