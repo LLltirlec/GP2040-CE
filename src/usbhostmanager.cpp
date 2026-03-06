@@ -32,6 +32,8 @@ void USBHostManager::start() {
         tuh_configure(1, TUH_CFGID_RPI_PIO_USB_CONFIGURATION, pio_cfg);
         tuh_init(BOARD_TUH_RHPORT);
         sleep_us(10); // ensure we are ready
+        // Poll interrupt endpoints (e.g. hub status) every 8ms instead of hub's 255ms (hub workaround)
+        set_interval_override(8);
         tuh_ready = true;
     } else {
         tuh_ready = false;
