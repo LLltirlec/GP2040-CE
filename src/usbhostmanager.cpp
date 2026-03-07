@@ -81,6 +81,11 @@ const char* USBHostManager::getUsbHostStatus() const {
     return "ready";  // host up, nothing connected
 }
 
+int USBHostManager::getUsbHostLineState() const {
+    if ( !tuh_ready ) return -1;
+    return pio_usb_host_get_root_line_state(0);
+}
+
 void USBHostManager::tryHubRecovery() {
     // Workaround: if something is connected (e.g. hub) but no HID device has appeared for a while,
     // re-init the host to retry enumeration. First attempt after EARLY_MS, then every RECOVERY_TIMEOUT_MS.

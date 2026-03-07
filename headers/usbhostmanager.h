@@ -54,6 +54,8 @@ public:
 
     // For debug without UART: returns short status string (e.g. "off", "ready", "hub_only", "hid_ok")
     const char* getUsbHostStatus() const;
+    // When status is "ready": root port line state 0=SE0, 1=FS_IDLE, 2=LS_IDLE, 3=SE1, -1=invalid
+    int getUsbHostLineState() const;
 
 private:
     void tryHubRecovery();
