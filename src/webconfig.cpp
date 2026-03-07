@@ -2610,9 +2610,14 @@ std::string reboot() {
 
 // USB host status for hub debugging (works in release build, no UART needed)
 std::string getUsbHostStatusApi() {
-    const size_t capacity = JSON_OBJECT_SIZE(2);
+    const size_t capacity = JSON_OBJECT_SIZE(4);
     DynamicJsonDocument doc(capacity);
-    doc["usbHostStatus"] = USBHostManager::getInstance().getUsbHostStatus();
+    const char* s = USBHostManager::getInstance().getUsbHostStatus();
+    doc["usbHostStatus"] = s;
+    // When "ready" with hub plugged in: root port never saw connect (no D+/D- pull-up from device)
+    if (strcmp(s, "ready") == 0) {
+        doc["hint"] = "Check: 5V to hub (enable5v pin or external), D+/D- wiring and GPIO pins in Peripheral Mapping.";
+    }
     return serialize_json(doc);
 }
 
