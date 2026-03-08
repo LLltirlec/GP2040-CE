@@ -202,7 +202,7 @@ void KeyboardHostListener::process() {
     } else if (mouseMovementMode == MOUSE_MOVEMENT_RIGHT_ANALOG) {
         // Right stick: interpolate toward target every frame (smooth FPS camera, no jerk)
         const float smooth = 0.45f;  // lerp factor per frame
-        int32_t range = static_cast<int32_t>(joystickMid);
+        const float range = static_cast<float>(static_cast<int32_t>(joystickMid));
         for (uint8_t i = 0; i < _mouse_slot_count; i++) {
           _mouse_velocity_cur_rx[i] += (_mouse_velocity_target_rx[i] - _mouse_velocity_cur_rx[i]) * smooth;
           _mouse_velocity_cur_ry[i] += (_mouse_velocity_target_ry[i] - _mouse_velocity_cur_ry[i]) * smooth;
