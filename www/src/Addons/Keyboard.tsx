@@ -42,8 +42,7 @@ export const keyboardScheme = {
 		),
 	keyboardHostMouseSensitivity: yup.number().required().min(1).max(100),
 	keyboardHostMouseMovement: yup.string().required().oneOf(['0', '1', '2']),
-	keyboardHostMouseYAxisAfterWheel: yup.boolean(),
-	keyboardHostMouseWheelBeforeAxes: yup.boolean(),
+	keyboardHostMouseReportLayout: yup.number().min(0).max(2),
 };
 
 export const keyboardState = {
@@ -54,8 +53,7 @@ export const keyboardState = {
 	KeyboardHostAddonEnabled: 0,
 	keyboardHostMouseSensitivity: 0,
 	keyboardHostMouseMovement: 0,
-	keyboardHostMouseYAxisAfterWheel: false,
-	keyboardHostMouseWheelBeforeAxes: false,
+	keyboardHostMouseReportLayout: 0,
 };
 
 const excludedButtons = [
@@ -247,26 +245,19 @@ const Keyboard = ({
 						</div>
 					</div>
 					<div className="col-sm-12 mb-2">
-						<FormCheck
-							type="switch"
-							id="keyboardHostMouseYAxisAfterWheel"
-							label={t('AddonsConfig:keyboard-host-mouse-y-axis-after-wheel')}
-							checked={Boolean(values.keyboardHostMouseYAxisAfterWheel)}
-							onChange={(e) => {
-								setFieldValue('keyboardHostMouseYAxisAfterWheel', e.target.checked);
-							}}
-						/>
-					</div>
-					<div className="col-sm-12 mb-2">
-						<FormCheck
-							type="switch"
-							id="keyboardHostMouseWheelBeforeAxes"
-							label={t('AddonsConfig:keyboard-host-mouse-wheel-before-axes')}
-							checked={Boolean(values.keyboardHostMouseWheelBeforeAxes)}
-							onChange={(e) => {
-								setFieldValue('keyboardHostMouseWheelBeforeAxes', e.target.checked);
-							}}
-						/>
+						<FormSelect
+							label={t('AddonsConfig:keyboard-host-mouse-report-layout')}
+							name="keyboardHostMouseReportLayout"
+							className="form-select-sm"
+							id="keyboardHostMouseReportLayout"
+							value={Number(values.keyboardHostMouseReportLayout) || 0}
+							error={errors.keyboardHostMouseReportLayout}
+							onChange={handleChange}
+						>
+							<option value={0}>{t('AddonsConfig:keyboard-host-mouse-layout-standard')}</option>
+							<option value={1}>{t('AddonsConfig:keyboard-host-mouse-layout-y-after-wheel')}</option>
+							<option value={2}>{t('AddonsConfig:keyboard-host-mouse-layout-wheel-before-axes')}</option>
+						</FormSelect>
 					</div>
 				</Row>
 			</div>

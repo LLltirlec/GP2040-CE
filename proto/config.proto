@@ -767,10 +767,10 @@ message KeyboardHostOptions
     optional uint32 mouseRight = 7;
     optional uint32 mouseSensitivity = 8;
     optional MouseMovementMode movementMode = 9;
-    // If true, mouse report layout is buttons,x,wheel,y (Y in byte 3). Default false = buttons,x,y,wheel.
+    // Legacy: used when mouseReportLayout not set. Prefer mouseReportLayout.
     optional bool mouseYAxisAfterWheel = 10;
-    // If true, mouse report layout is buttons,wheel,x,y (some mice e.g. Xiaomi). Takes precedence over mouseYAxisAfterWheel.
     optional bool mouseWheelBeforeAxes = 11;
+    optional MouseReportLayout mouseReportLayout = 12;
 }
 
 message GamepadUSBHostOptions

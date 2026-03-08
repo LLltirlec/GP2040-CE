@@ -84,8 +84,7 @@ private:
     uint16_t mouseRightMapping;
     uint32_t mouseSensitivity;
     uint8_t mouseMovementMode;
-    bool mouseYAxisAfterWheel;
-    bool mouseWheelBeforeAxes;
+    uint8_t mouseReportLayout;  // MouseReportLayout enum
     float mouseSensitivityScale;
     uint32_t mouseResetMS;
     uint32_t mouseResetNextTimer;

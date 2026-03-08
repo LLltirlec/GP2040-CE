@@ -707,3 +707,13 @@ enum MouseMovementMode
     MOUSE_MOVEMENT_LEFT_ANALOG = 1;
     MOUSE_MOVEMENT_RIGHT_ANALOG = 2;
 };
+
+// Order of bytes in HID mouse report after buttons: data[1], data[2], data[3]
+enum MouseReportLayout
+{
+    option (nanopb_enumopt).long_names = false;
+
+    MOUSE_LAYOUT_STANDARD = 0;           // buttons, X, Y, wheel
+    MOUSE_LAYOUT_Y_AFTER_WHEEL = 1;      // buttons, X, wheel, Y
+    MOUSE_LAYOUT_WHEEL_BEFORE_AXES = 2;  // buttons, wheel, X, Y
+};

@@ -67,8 +67,7 @@ void KeyboardHostListener::setup() {
   mouseRightMapping = keyboardHostOptions.mouseRight;
   mouseSensitivity = keyboardHostOptions.mouseSensitivity;
   mouseMovementMode = keyboardHostOptions.movementMode;
-  mouseYAxisAfterWheel = keyboardHostOptions.mouseYAxisAfterWheel;
-  mouseWheelBeforeAxes = keyboardHostOptions.mouseWheelBeforeAxes;
+  mouseReportLayout = keyboardHostOptions.mouseReportLayout;
   mouseSensitivityScale = mouseSensitivity / 10.0f;
   mouseResetMS = 16;
   mouseResetNextTimer = 0;
@@ -388,21 +387,24 @@ void KeyboardHostListener::process_mouse_report(uint8_t slot, uint8_t const * re
   int8_t x;
   int8_t y;
   int8_t wheel;
-  // Read options at runtime so webconfig changes apply without reboot
-  bool useWheelBeforeAxes = Storage::getInstance().getAddonOptions().keyboardHostOptions.mouseWheelBeforeAxes;
-  bool useYAfterWheel = Storage::getInstance().getAddonOptions().keyboardHostOptions.mouseYAxisAfterWheel;
+  // Read option at runtime so webconfig changes apply without reboot
+  uint8_t layout = Storage::getInstance().getAddonOptions().keyboardHostOptions.mouseReportLayout;
+  if (layout > MOUSE_LAYOUT_WHEEL_BEFORE_AXES)
+    layout = MOUSE_LAYOUT_STANDARD;
   // Layout: [report_id?] buttons, then either (x,y,wheel), (x,wheel,y), or (wheel,x,y).
   if (len >= 4) {
-    if (useWheelBeforeAxes) {
-      // buttons, wheel, x, y (e.g. some Xiaomi mice)
+    if (layout == MOUSE_LAYOUT_WHEEL_BEFORE_AXES) {
+      // buttons, wheel, x, y
       wheel = (int8_t)data[1];
       x = (int8_t)data[2];
       y = (int8_t)data[3];
-    } else if (useYAfterWheel) {
+    } else if (layout == MOUSE_LAYOUT_Y_AFTER_WHEEL) {
+      // buttons, x, wheel, y
       x = (int8_t)data[1];
       wheel = (int8_t)data[2];
       y = (int8_t)data[3];
     } else {
+      // MOUSE_LAYOUT_STANDARD: buttons, x, y, wheel
       x = (int8_t)data[1];
       y = (int8_t)data[2];
       wheel = (int8_t)data[3];
