@@ -4,6 +4,7 @@
 void PeripheralManager::initUSB(){
     const PeripheralOptions& peripheralOptions = Storage::getInstance().getPeripheralOptions();
     if (peripheralOptions.blockUSB0.enabled) blockUSB0.setConfig(0, peripheralOptions.blockUSB0.dp, peripheralOptions.blockUSB0.enable5v, peripheralOptions.blockUSB0.order);
+    if (peripheralOptions.blockUSB1.enabled) blockUSB1.setConfig(1, peripheralOptions.blockUSB1.dp, peripheralOptions.blockUSB1.enable5v, peripheralOptions.blockUSB1.order);
 }
 
 void PeripheralManager::initI2C(){
@@ -34,7 +35,7 @@ PeripheralSPI* PeripheralManager::getSPI(uint8_t block) {
 
 PeripheralUSB* PeripheralManager::getUSB(uint8_t block) {
     if (block < NUM_USBS) {
-        return ((block == 0) ? &blockUSB0 : &blockUSB0);
+        return ((block == 0) ? &blockUSB0 : &blockUSB1);
     }
     return nullptr;
 }
@@ -55,7 +56,7 @@ bool PeripheralManager::isSPIEnabled(uint8_t block) {
 
 bool PeripheralManager::isUSBEnabled(uint8_t block) {
     if (block < NUM_USBS) {
-        return (((block == 0) ? blockUSB0.configured : false));
+        return (((block == 0) ? blockUSB0.configured : blockUSB1.configured));
     }
     return false;
 }

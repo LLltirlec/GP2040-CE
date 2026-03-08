@@ -46,6 +46,7 @@ private:
     PeripheralSPI blockSPI1;
 
     PeripheralUSB blockUSB0;
+    PeripheralUSB blockUSB1;
 };
 
 #endif

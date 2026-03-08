@@ -21,7 +21,7 @@
 #define USB_PERIPHERAL_PIN_ORDER 0
 #endif
 
-#define NUM_USBS 1
+#define NUM_USBS 2
 
 class PeripheralUSB {
 public:

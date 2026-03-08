@@ -13,10 +13,27 @@
 
 void USBHostManager::start() {
     // This will happen after Gamepad has initialized
-    if (PeripheralManager::getInstance().isUSBEnabled(0) && listeners.size() > 0) {
-        pio_usb_configuration_t* pio_cfg = PeripheralManager::getInstance().getUSB(0)->getController();
-        tuh_configure(1, TUH_CFGID_RPI_PIO_USB_CONFIGURATION, pio_cfg);
-        tuh_init(BOARD_TUH_RHPORT);
+    bool usb0Enabled = PeripheralManager::getInstance().isUSBEnabled(0);
+    bool usb1Enabled = PeripheralManager::getInstance().isUSBEnabled(1);
+    bool anyUsbEnabled = usb0Enabled || usb1Enabled;
+    if (anyUsbEnabled && listeners.size() > 0) {
+        // Port 0 must be initialized first (PIO USB host requires it)
+        if (usb0Enabled) {
+            pio_usb_configuration_t* pio_cfg = PeripheralManager::getInstance().getUSB(0)->getController();
+            tuh_configure(1, TUH_CFGID_RPI_PIO_USB_CONFIGURATION, pio_cfg);
+            tuh_init(1);
+        } else if (usb1Enabled) {
+            // Only USB1 enabled: use it as the single (port 0) config
+            pio_usb_configuration_t* pio_cfg = PeripheralManager::getInstance().getUSB(1)->getController();
+            tuh_configure(1, TUH_CFGID_RPI_PIO_USB_CONFIGURATION, pio_cfg);
+            tuh_init(1);
+        }
+        // Add second port when both are enabled
+        if (usb0Enabled && usb1Enabled) {
+            pio_usb_configuration_t* pio_cfg = PeripheralManager::getInstance().getUSB(1)->getController();
+            tuh_configure(2, TUH_CFGID_RPI_PIO_USB_CONFIGURATION, pio_cfg);
+            tuh_init(2);
+        }
         sleep_us(10); // ensure we are ready
         tuh_ready = true;
     } else {
@@ -27,7 +44,12 @@ void USBHostManager::start() {
 // Shut down the USB bus if we are running USB right now
 void USBHostManager::shutdown() {
     if ( tuh_ready ) {
-        tuh_deinit(BOARD_TUH_RHPORT);
+        if (PeripheralManager::getInstance().isUSBEnabled(1)) {
+            tuh_deinit(2);
+        }
+        if (PeripheralManager::getInstance().isUSBEnabled(0)) {
+            tuh_deinit(1);
+        }
     }
 }
 

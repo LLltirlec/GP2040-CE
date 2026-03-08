@@ -1313,6 +1313,11 @@ std::string getPeripheralOptions()
     writeDoc(doc, "peripheral", "usb0", "enable5v",peripheralOptions.blockUSB0.enable5v);
     writeDoc(doc, "peripheral", "usb0", "order",   peripheralOptions.blockUSB0.order);
 
+    writeDoc(doc, "peripheral", "usb1", "enabled", peripheralOptions.blockUSB1.enabled);
+    writeDoc(doc, "peripheral", "usb1", "dp",      peripheralOptions.blockUSB1.dp);
+    writeDoc(doc, "peripheral", "usb1", "enable5v",peripheralOptions.blockUSB1.enable5v);
+    writeDoc(doc, "peripheral", "usb1", "order",   peripheralOptions.blockUSB1.order);
+
     return serialize_json(doc);
 }
 
@@ -1374,25 +1379,52 @@ std::string setPeripheralOptions()
     // need to reserve previous/next pin for dp
     GpioMappingInfo* gpioMappings = Storage::getInstance().getGpioMappings().pins;
     ProfileOptions& profiles = Storage::getInstance().getProfileOptions();
-    uint8_t adjacent = peripheralOptions.blockUSB0.order ? -1 : 1;
+    uint8_t adjacent0 = peripheralOptions.blockUSB0.order ? (uint8_t)-1 : 1;
 
     Pin_t oldPinDplus = peripheralOptions.blockUSB0.dp;
     docToPin(peripheralOptions.blockUSB0.dp, doc, "peripheral", "usb0", "dp");
     if (isValidPin(peripheralOptions.blockUSB0.dp)) {
         // if D+ pin is now set, also set the pin that will be used for D-
-        gpioMappings[peripheralOptions.blockUSB0.dp+adjacent].action = GpioAction::ASSIGNED_TO_ADDON;
-        profiles.gpioMappingsSets[0].pins[peripheralOptions.blockUSB0.dp+adjacent].action =
+        int8_t adj0 = (int8_t)adjacent0;
+        gpioMappings[peripheralOptions.blockUSB0.dp+adj0].action = GpioAction::ASSIGNED_TO_ADDON;
+        profiles.gpioMappingsSets[0].pins[peripheralOptions.blockUSB0.dp+adj0].action =
             GpioAction::ASSIGNED_TO_ADDON;
-        profiles.gpioMappingsSets[1].pins[peripheralOptions.blockUSB0.dp+adjacent].action =
+        profiles.gpioMappingsSets[1].pins[peripheralOptions.blockUSB0.dp+adj0].action =
             GpioAction::ASSIGNED_TO_ADDON;
-        profiles.gpioMappingsSets[2].pins[peripheralOptions.blockUSB0.dp+adjacent].action =
+        profiles.gpioMappingsSets[2].pins[peripheralOptions.blockUSB0.dp+adj0].action =
             GpioAction::ASSIGNED_TO_ADDON;
     } else if (isValidPin(oldPinDplus)) {
         // if D+ pin was set and is no longer, also unset the pin that was used for D-
-        gpioMappings[oldPinDplus+adjacent].action = GpioAction::NONE;
-        profiles.gpioMappingsSets[0].pins[oldPinDplus+adjacent].action = GpioAction::NONE;
-        profiles.gpioMappingsSets[1].pins[oldPinDplus+adjacent].action = GpioAction::NONE;
-        profiles.gpioMappingsSets[2].pins[oldPinDplus+adjacent].action = GpioAction::NONE;
+        int8_t adj0 = (int8_t)adjacent0;
+        gpioMappings[oldPinDplus+adj0].action = GpioAction::NONE;
+        profiles.gpioMappingsSets[0].pins[oldPinDplus+adj0].action = GpioAction::NONE;
+        profiles.gpioMappingsSets[1].pins[oldPinDplus+adj0].action = GpioAction::NONE;
+        profiles.gpioMappingsSets[2].pins[oldPinDplus+adj0].action = GpioAction::NONE;
+    }
+
+    docToValue(peripheralOptions.blockUSB1.enabled, doc, "peripheral", "usb1", "enabled");
+    docToValue(peripheralOptions.blockUSB1.enable5v, doc, "peripheral", "usb1", "enable5v");
+    docToValue(peripheralOptions.blockUSB1.order, doc, "peripheral", "usb1", "order");
+
+    uint8_t adjacent1 = peripheralOptions.blockUSB1.order ? (uint8_t)-1 : 1;
+
+    Pin_t oldPinDplus1 = peripheralOptions.blockUSB1.dp;
+    docToPin(peripheralOptions.blockUSB1.dp, doc, "peripheral", "usb1", "dp");
+    if (isValidPin(peripheralOptions.blockUSB1.dp)) {
+        int8_t adj1 = (int8_t)adjacent1;
+        gpioMappings[peripheralOptions.blockUSB1.dp+adj1].action = GpioAction::ASSIGNED_TO_ADDON;
+        profiles.gpioMappingsSets[0].pins[peripheralOptions.blockUSB1.dp+adj1].action =
+            GpioAction::ASSIGNED_TO_ADDON;
+        profiles.gpioMappingsSets[1].pins[peripheralOptions.blockUSB1.dp+adj1].action =
+            GpioAction::ASSIGNED_TO_ADDON;
+        profiles.gpioMappingsSets[2].pins[peripheralOptions.blockUSB1.dp+adj1].action =
+            GpioAction::ASSIGNED_TO_ADDON;
+    } else if (isValidPin(oldPinDplus1)) {
+        int8_t adj1 = (int8_t)adjacent1;
+        gpioMappings[oldPinDplus1+adj1].action = GpioAction::NONE;
+        profiles.gpioMappingsSets[0].pins[oldPinDplus1+adj1].action = GpioAction::NONE;
+        profiles.gpioMappingsSets[1].pins[oldPinDplus1+adj1].action = GpioAction::NONE;
+        profiles.gpioMappingsSets[2].pins[oldPinDplus1+adj1].action = GpioAction::NONE;
     }
 
     EventManager::getInstance().triggerEvent(new GPStorageSaveEvent(true));

@@ -144,6 +144,7 @@ message PeripheralOptions
     optional SPIOptions blockSPI0 = 3;
     optional SPIOptions blockSPI1 = 4;
     optional USBOptions blockUSB0 = 5;
+    optional USBOptions blockUSB1 = 6;
 }
 
 message ForcedSetupOptions

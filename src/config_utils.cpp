@@ -486,6 +486,11 @@ void ConfigUtils::initUnsetPropertiesWithDefaults(Config& config)
     INIT_UNSET_PROPERTY(peripheralOptions.blockUSB0, order, USB_PERIPHERAL_PIN_ORDER);
     INIT_UNSET_PROPERTY(peripheralOptions.blockUSB0, enable5v, USB_PERIPHERAL_PIN_5V);
 
+    INIT_UNSET_PROPERTY(peripheralOptions.blockUSB1, enabled, 0);
+    INIT_UNSET_PROPERTY(peripheralOptions.blockUSB1, dp, -1);
+    INIT_UNSET_PROPERTY(peripheralOptions.blockUSB1, order, USB_PERIPHERAL_PIN_ORDER);
+    INIT_UNSET_PROPERTY(peripheralOptions.blockUSB1, enable5v, -1);
+
     // ledOptions
     INIT_UNSET_PROPERTY(config.ledOptions, dataPin, BOARD_LEDS_PIN);
     INIT_UNSET_PROPERTY(config.ledOptions, ledFormat, static_cast<LEDFormat_Proto>(LED_FORMAT));
