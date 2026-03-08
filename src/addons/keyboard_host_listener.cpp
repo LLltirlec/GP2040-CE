@@ -397,7 +397,8 @@ static int32_t mouseConvertToStickOffset(int8_t d, int32_t joystickMid, float se
   int32_t ad = d < 0 ? -static_cast<int32_t>(d) : static_cast<int32_t>(d);
   int32_t out = static_cast<int32_t>(RIGHT_STICK_SQRT_COEF * sqrtf(static_cast<float>(ad) + 2.0f));
   if (d < 0) out = -out;
-  out = std::clamp(out, -127, 127);
+  const int32_t lim = 127;
+  out = std::clamp(out, -lim, lim);
   return static_cast<int32_t>(static_cast<float>(out) * sensScale * static_cast<float>(joystickMid) / 127.0f);
 }
 
