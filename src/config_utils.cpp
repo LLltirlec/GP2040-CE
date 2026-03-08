@@ -1580,6 +1580,12 @@ void gpioMappingsMigrationCore(Config& config)
         }
     }
 
+    if (peripheralOptions.blockUSB1.enabled && isValidPin(peripheralOptions.blockUSB1.dp)) {
+        markAddonPinIfUsed(peripheralOptions.blockUSB1.dp);
+        int adj1 = peripheralOptions.blockUSB1.order ? -1 : 1;
+        actions[peripheralOptions.blockUSB1.dp + adj1] = GpioAction::ASSIGNED_TO_ADDON;
+    }
+
     markAddonPinIfUsed(config.ledOptions.dataPin);
     // check if PLED PINs are actually GPIOs or not
     // pledPin used to be used for RGB indexes, so we should only mark the GPIO
@@ -1907,31 +1913,34 @@ static bool loadConfigInner(Config& config)
     config = Config Config_init_zero;
 
     const uint8_t* flashEnd = reinterpret_cast<const uint8_t*>(EEPROM_ADDRESS_START) + EEPROM_SIZE_BYTES;
-    const ConfigFooter& footer = *reinterpret_cast<const ConfigFooter*>(flashEnd - sizeof(ConfigFooter));
+    const ConfigFooter* footerPtr = reinterpret_cast<const ConfigFooter*>(flashEnd - sizeof(ConfigFooter));
+    const ConfigFooter& footer = *footerPtr;
 
     // Check for presence of magic value
-    if (footer.magic != FOOTER_MAGIC)
+    if (footer.magic == FOOTER_MAGIC &&
+        footer.dataSize + sizeof(ConfigFooter) <= EEPROM_SIZE_BYTES &&
+        CRC32::calculate(flashEnd - sizeof(ConfigFooter) - footer.dataSize, footer.dataSize) == footer.dataCrc)
     {
-        return false;
+        pb_istream_t inputStream = pb_istream_from_buffer(flashEnd - sizeof(ConfigFooter) - footer.dataSize, footer.dataSize);
+        return pb_decode(&inputStream, Config_fields, &config);
     }
 
-        // Check if dataSize exceeds the reserved space
-    if (footer.dataSize + sizeof(ConfigFooter) > EEPROM_SIZE_BYTES)
+    // Migration: try previous 32KB layout at 0x101F8000 (before EEPROM was increased to 36KB)
+    const uint8_t* oldFlashEnd = reinterpret_cast<const uint8_t*>(0x101F8000) + 0x8000;
+    const ConfigFooter* oldFooterPtr = reinterpret_cast<const ConfigFooter*>(oldFlashEnd - sizeof(ConfigFooter));
+    if (oldFooterPtr->magic == FOOTER_MAGIC &&
+        oldFooterPtr->dataSize + sizeof(ConfigFooter) <= 0x8000 &&
+        CRC32::calculate(oldFlashEnd - sizeof(ConfigFooter) - oldFooterPtr->dataSize, oldFooterPtr->dataSize) == oldFooterPtr->dataCrc)
     {
-        return false;
+        pb_istream_t inputStream = pb_istream_from_buffer(oldFlashEnd - sizeof(ConfigFooter) - oldFooterPtr->dataSize, oldFooterPtr->dataSize);
+        if (pb_decode(&inputStream, Config_fields, &config))
+        {
+            ConfigUtils::save(config); // write to new layout for next boot
+            return true;
+        }
     }
 
-    const uint8_t* dataPtr = flashEnd - sizeof(ConfigFooter) - footer.dataSize;
-
-    // Verify CRC32 hash
-    if (CRC32::calculate(dataPtr, footer.dataSize) != footer.dataCrc)
-    {
-        return false;
-    }
-
-    // We are now sufficiently confident that the data is valid so we run the deserialization
-    pb_istream_t inputStream = pb_istream_from_buffer(dataPtr, footer.dataSize);
-    return pb_decode(&inputStream, Config_fields, &config);
+    return false;
 }
 
 void ConfigUtils::load(Config& config)

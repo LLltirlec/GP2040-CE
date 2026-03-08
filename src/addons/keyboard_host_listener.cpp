@@ -385,9 +385,11 @@ void KeyboardHostListener::process_mouse_report(uint8_t slot, uint8_t const * re
   uint8_t const * data = (len >= 5) ? (report + 1) : report;
   uint8_t buttons = data[0];
   int8_t x = (int8_t)data[1];
+  // Read option at runtime so webconfig changes apply without reboot
+  bool useYAfterWheel = Storage::getInstance().getAddonOptions().keyboardHostOptions.mouseYAxisAfterWheel;
   // Some mice use layout buttons,x,wheel,y (Y in byte 3). Option mouseYAxisAfterWheel selects that.
-  int8_t y = mouseYAxisAfterWheel && (len >= 4) ? (int8_t)data[3] : (int8_t)data[2];
-  int8_t wheel = (len >= 4) ? (mouseYAxisAfterWheel ? (int8_t)data[2] : (int8_t)data[3]) : 0;
+  int8_t y = useYAfterWheel && (len >= 4) ? (int8_t)data[3] : (int8_t)data[2];
+  int8_t wheel = (len >= 4) ? (useYAfterWheel ? (int8_t)data[2] : (int8_t)data[3]) : 0;
 
   _mouse_host_state[slot].buttons = 0;
   _mouse_host_state[slot].buttons |=

@@ -1384,9 +1384,16 @@ std::string setPeripheralOptions()
     Pin_t oldPinDplus = peripheralOptions.blockUSB0.dp;
     docToPin(peripheralOptions.blockUSB0.dp, doc, "peripheral", "usb0", "dp");
     if (isValidPin(peripheralOptions.blockUSB0.dp)) {
-        // if D+ pin is now set, also set the pin that will be used for D-
+        // Reserve both D+ and D- pins for USB0
         int8_t adj0 = (int8_t)adjacent0;
+        gpioMappings[peripheralOptions.blockUSB0.dp].action = GpioAction::ASSIGNED_TO_ADDON;
         gpioMappings[peripheralOptions.blockUSB0.dp+adj0].action = GpioAction::ASSIGNED_TO_ADDON;
+        profiles.gpioMappingsSets[0].pins[peripheralOptions.blockUSB0.dp].action =
+            GpioAction::ASSIGNED_TO_ADDON;
+        profiles.gpioMappingsSets[1].pins[peripheralOptions.blockUSB0.dp].action =
+            GpioAction::ASSIGNED_TO_ADDON;
+        profiles.gpioMappingsSets[2].pins[peripheralOptions.blockUSB0.dp].action =
+            GpioAction::ASSIGNED_TO_ADDON;
         profiles.gpioMappingsSets[0].pins[peripheralOptions.blockUSB0.dp+adj0].action =
             GpioAction::ASSIGNED_TO_ADDON;
         profiles.gpioMappingsSets[1].pins[peripheralOptions.blockUSB0.dp+adj0].action =
@@ -1394,9 +1401,12 @@ std::string setPeripheralOptions()
         profiles.gpioMappingsSets[2].pins[peripheralOptions.blockUSB0.dp+adj0].action =
             GpioAction::ASSIGNED_TO_ADDON;
     } else if (isValidPin(oldPinDplus)) {
-        // if D+ pin was set and is no longer, also unset the pin that was used for D-
         int8_t adj0 = (int8_t)adjacent0;
+        gpioMappings[oldPinDplus].action = GpioAction::NONE;
         gpioMappings[oldPinDplus+adj0].action = GpioAction::NONE;
+        profiles.gpioMappingsSets[0].pins[oldPinDplus].action = GpioAction::NONE;
+        profiles.gpioMappingsSets[1].pins[oldPinDplus].action = GpioAction::NONE;
+        profiles.gpioMappingsSets[2].pins[oldPinDplus].action = GpioAction::NONE;
         profiles.gpioMappingsSets[0].pins[oldPinDplus+adj0].action = GpioAction::NONE;
         profiles.gpioMappingsSets[1].pins[oldPinDplus+adj0].action = GpioAction::NONE;
         profiles.gpioMappingsSets[2].pins[oldPinDplus+adj0].action = GpioAction::NONE;
@@ -1411,8 +1421,16 @@ std::string setPeripheralOptions()
     Pin_t oldPinDplus1 = peripheralOptions.blockUSB1.dp;
     docToPin(peripheralOptions.blockUSB1.dp, doc, "peripheral", "usb1", "dp");
     if (isValidPin(peripheralOptions.blockUSB1.dp)) {
+        // Reserve both D+ and D- pins for USB1 (e.g. GPIO2/GPIO3) so they are not used as buttons
         int8_t adj1 = (int8_t)adjacent1;
+        gpioMappings[peripheralOptions.blockUSB1.dp].action = GpioAction::ASSIGNED_TO_ADDON;
         gpioMappings[peripheralOptions.blockUSB1.dp+adj1].action = GpioAction::ASSIGNED_TO_ADDON;
+        profiles.gpioMappingsSets[0].pins[peripheralOptions.blockUSB1.dp].action =
+            GpioAction::ASSIGNED_TO_ADDON;
+        profiles.gpioMappingsSets[1].pins[peripheralOptions.blockUSB1.dp].action =
+            GpioAction::ASSIGNED_TO_ADDON;
+        profiles.gpioMappingsSets[2].pins[peripheralOptions.blockUSB1.dp].action =
+            GpioAction::ASSIGNED_TO_ADDON;
         profiles.gpioMappingsSets[0].pins[peripheralOptions.blockUSB1.dp+adj1].action =
             GpioAction::ASSIGNED_TO_ADDON;
         profiles.gpioMappingsSets[1].pins[peripheralOptions.blockUSB1.dp+adj1].action =
@@ -1421,7 +1439,11 @@ std::string setPeripheralOptions()
             GpioAction::ASSIGNED_TO_ADDON;
     } else if (isValidPin(oldPinDplus1)) {
         int8_t adj1 = (int8_t)adjacent1;
+        gpioMappings[oldPinDplus1].action = GpioAction::NONE;
         gpioMappings[oldPinDplus1+adj1].action = GpioAction::NONE;
+        profiles.gpioMappingsSets[0].pins[oldPinDplus1].action = GpioAction::NONE;
+        profiles.gpioMappingsSets[1].pins[oldPinDplus1].action = GpioAction::NONE;
+        profiles.gpioMappingsSets[2].pins[oldPinDplus1].action = GpioAction::NONE;
         profiles.gpioMappingsSets[0].pins[oldPinDplus1+adj1].action = GpioAction::NONE;
         profiles.gpioMappingsSets[1].pins[oldPinDplus1+adj1].action = GpioAction::NONE;
         profiles.gpioMappingsSets[2].pins[oldPinDplus1+adj1].action = GpioAction::NONE;
