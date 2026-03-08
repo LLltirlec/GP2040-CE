@@ -107,6 +107,10 @@ void KeyboardHostListener::setup() {
     _mouse_accumulator_ly[i] = joystickMid;
     _mouse_accumulator_rx[i] = joystickMid;
     _mouse_accumulator_ry[i] = joystickMid;
+    _mouse_velocity_target_rx[i] = 0;
+    _mouse_velocity_target_ry[i] = 0;
+    _mouse_velocity_cur_rx[i] = 0.f;
+    _mouse_velocity_cur_ry[i] = 0.f;
   }
 
   mouseX = 0;
@@ -180,7 +184,7 @@ void KeyboardHostListener::process() {
         gamepad->auxState.sensors.mouse.z = mouseZ;
         mouseActive = false;
     } else if(mouseResetNextTimer < getMillis()) {
-        // Return stick to center only after no mouse movement for MOUSE_STICK_HOLD_MS (PC-like hold)
+        // Return stick to center after no mouse movement
         for (uint8_t i = 0; i < _mouse_slot_count; i++) {
           _mouse_host_state[i].lx = joystickMid;
           _mouse_host_state[i].ly = joystickMid;
@@ -190,6 +194,26 @@ void KeyboardHostListener::process() {
           _mouse_accumulator_ly[i] = joystickMid;
           _mouse_accumulator_rx[i] = joystickMid;
           _mouse_accumulator_ry[i] = joystickMid;
+          _mouse_velocity_target_rx[i] = 0;
+          _mouse_velocity_target_ry[i] = 0;
+          _mouse_velocity_cur_rx[i] = 0.f;
+          _mouse_velocity_cur_ry[i] = 0.f;
+        }
+    } else if (mouseMovementMode == MOUSE_MOVEMENT_RIGHT_ANALOG) {
+        // Right stick: interpolate toward target every frame (smooth FPS camera, no jerk)
+        const float smooth = 0.45f;  // lerp factor per frame
+        int32_t range = static_cast<int32_t>(joystickMid);
+        for (uint8_t i = 0; i < _mouse_slot_count; i++) {
+          _mouse_velocity_cur_rx[i] += (_mouse_velocity_target_rx[i] - _mouse_velocity_cur_rx[i]) * smooth;
+          _mouse_velocity_cur_ry[i] += (_mouse_velocity_target_ry[i] - _mouse_velocity_cur_ry[i]) * smooth;
+          _mouse_velocity_cur_rx[i] = std::clamp(_mouse_velocity_cur_rx[i], -range, range);
+          _mouse_velocity_cur_ry[i] = std::clamp(_mouse_velocity_cur_ry[i], -range, range);
+          _mouse_host_state[i].rx = static_cast<uint16_t>(std::clamp(
+              static_cast<int32_t>(joystickMid) + static_cast<int32_t>(_mouse_velocity_cur_rx[i]),
+              GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32));
+          _mouse_host_state[i].ry = static_cast<uint16_t>(std::clamp(
+              static_cast<int32_t>(joystickMid) + static_cast<int32_t>(_mouse_velocity_cur_ry[i]),
+              GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32));
         }
     }
   }
@@ -454,12 +478,10 @@ void KeyboardHostListener::process_mouse_report(uint8_t slot, uint8_t const * re
     _mouse_host_state[slot].lx = static_cast<uint16_t>(_mouse_accumulator_lx[slot]);
     _mouse_host_state[slot].ly = static_cast<uint16_t>(_mouse_accumulator_ly[slot]);
   } else if (mouseMovementMode == MOUSE_MOVEMENT_RIGHT_ANALOG) {
-    // Right stick (camera): velocity mode — stick directly follows mouse movement, no accumulation (PC-like, sharp)
+    // Right stick (camera): velocity mode — target set here, process() interpolates for smooth FPS
     int32_t vx = static_cast<int32_t>(dx * RIGHT_STICK_VELOCITY_SCALE);
     int32_t vy = static_cast<int32_t>(dy * RIGHT_STICK_VELOCITY_SCALE);
-    _mouse_host_state[slot].rx = static_cast<uint16_t>(std::clamp(
-        static_cast<int32_t>(joystickMid) + vx, GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32));
-    _mouse_host_state[slot].ry = static_cast<uint16_t>(std::clamp(
-        static_cast<int32_t>(joystickMid) + vy, GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32));
+    _mouse_velocity_target_rx[slot] = std::clamp(vx, -static_cast<int32_t>(joystickMid), static_cast<int32_t>(joystickMid));
+    _mouse_velocity_target_ry[slot] = std::clamp(vy, -static_cast<int32_t>(joystickMid), static_cast<int32_t>(joystickMid));
   }
 }

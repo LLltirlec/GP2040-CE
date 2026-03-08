@@ -84,6 +84,11 @@ private:
     int32_t _mouse_accumulator_ly[2];
     int32_t _mouse_accumulator_rx[2];
     int32_t _mouse_accumulator_ry[2];
+    /** Right stick velocity mode: target and smoothed current (offset from center) for interpolation */
+    int32_t _mouse_velocity_target_rx[2];
+    int32_t _mouse_velocity_target_ry[2];
+    float _mouse_velocity_cur_rx[2];
+    float _mouse_velocity_cur_ry[2];
     uint16_t mouseLeftMapping;
     uint16_t mouseMiddleMapping;
     uint16_t mouseRightMapping;
