@@ -380,16 +380,35 @@ int32_t KeyboardHostListener::scaleMouseDeltaToJoystick(int8_t mouseVal) {
 void KeyboardHostListener::process_mouse_report(uint8_t slot, uint8_t const * report, uint16_t len)
 {
   // HID report may include report_id as first byte (composite device). Boot mouse = 4 bytes (no ID).
-  // Layout: [report_id?] buttons, x, y [, wheel] -> offsets 0,1,2,3 or 1,2,3,4 if report_id present.
+  // Layout: [report_id?] buttons, x, y [, wheel] or buttons, x, wheel, y (non-standard).
   if (len < 3) return;
   uint8_t const * data = (len >= 5) ? (report + 1) : report;
   uint8_t buttons = data[0];
   int8_t x = (int8_t)data[1];
   // Read option at runtime so webconfig changes apply without reboot
   bool useYAfterWheel = Storage::getInstance().getAddonOptions().keyboardHostOptions.mouseYAxisAfterWheel;
-  // Some mice use layout buttons,x,wheel,y (Y in byte 3). Option mouseYAxisAfterWheel selects that.
-  int8_t y = useYAfterWheel && (len >= 4) ? (int8_t)data[3] : (int8_t)data[2];
-  int8_t wheel = (len >= 4) ? (useYAfterWheel ? (int8_t)data[2] : (int8_t)data[3]) : 0;
+  // Standard layout: buttons, x, y, wheel (y=data[2], wheel=data[3]).
+  // Non-standard (Y after wheel): buttons, x, wheel, y (y=data[3], wheel=data[2]). Option selects that.
+  int8_t y;
+  int8_t wheel;
+  if (len >= 4) {
+    if (useYAfterWheel) {
+      y = (int8_t)data[3];   // Y axis in byte 3
+      wheel = (int8_t)data[2]; // wheel in byte 2
+    } else {
+      y = (int8_t)data[2];
+      wheel = (int8_t)data[3];
+    }
+  } else {
+    // 3-byte report: buttons, x, ?. With option on, some mice send wheel in byte 2 — don't use for stick.
+    if (useYAfterWheel) {
+      y = 0;                  // do not move stick vertically from 3-byte report
+      wheel = (int8_t)data[2];
+    } else {
+      y = (int8_t)data[2];
+      wheel = 0;
+    }
+  }
 
   _mouse_host_state[slot].buttons = 0;
   _mouse_host_state[slot].buttons |=
@@ -408,6 +427,7 @@ void KeyboardHostListener::process_mouse_report(uint8_t slot, uint8_t const * re
 
   mouseResetNextTimer = getMillis() + mouseResetMS;
 
+  // Only mouse X/Y deltas move the stick; wheel is never applied to stick
   int32_t dx = scaleMouseDeltaToJoystick(x);
   int32_t dy = scaleMouseDeltaToJoystick(y);
   if (mouseMovementMode == MOUSE_MOVEMENT_LEFT_ANALOG) {
