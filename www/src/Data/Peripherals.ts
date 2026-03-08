@@ -36,6 +36,7 @@ export const SPI_BLOCKS = [
 
 export const USB_BLOCKS = [
 	{ label: 'usb0', value: 0, pins: { dp: [], enable5v: [] } },
+	{ label: 'usb1', value: 1, pins: { dp: [], enable5v: [] } },
 ];
 
 export const PERIPHERAL_DEVICES = [

@@ -131,6 +131,12 @@ export const basePeripheralMapping = {
 			enable5v: -1,
 			order: 0,
 		},
+		usb1: {
+			enabled: 0,
+			dp: -1,
+			enable5v: -1,
+			order: 0,
+		},
 	},
 };
 
