@@ -85,6 +85,7 @@ private:
     uint32_t mouseSensitivity;
     uint8_t mouseMovementMode;
     bool mouseYAxisAfterWheel;
+    bool mouseWheelBeforeAxes;
     float mouseSensitivityScale;
     uint32_t mouseResetMS;
     uint32_t mouseResetNextTimer;

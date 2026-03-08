@@ -172,6 +172,7 @@ export default {
 	'keyboard-host-mouse-movement-left-analog': 'Left Analog',
 	'keyboard-host-mouse-movement-right-analog': 'Right Analog',
 	'keyboard-host-mouse-y-axis-after-wheel': 'Mouse Y axis after wheel (if vertical movement does not work)',
+	'keyboard-host-mouse-wheel-before-axes': 'Mouse wheel before X/Y (if horizontal/vertical only work via scroll, e.g. Xiaomi)',
 	'pin-config-moved-to-core-text':
 		'Note: GPIO pins for this add-on are configured in <0>GPIO Pin Mapping</0>',
 	'input-history-header-text': 'Input History',
