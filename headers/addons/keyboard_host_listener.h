@@ -37,8 +37,8 @@ public:// USB Listener Features
 private:
     uint8_t getKeycodeFromModifier(uint8_t modifier);
     void preprocess_report();
-    void process_kbd_report(uint8_t dev_addr, hid_keyboard_report_t const *report);
-    void process_mouse_report(uint8_t dev_addr, uint8_t const *report, uint16_t len);
+    void process_kbd_report(uint8_t slot, hid_keyboard_report_t const *report);
+    void process_mouse_report(uint8_t slot, uint8_t const *report, uint16_t len);
     uint16_t scaleMouseToJoystick(int8_t mouseVal);
     /** Return joystick-space delta for accumulation (so both X and Y work when reports may be split) */
     int32_t scaleMouseDeltaToJoystick(int8_t mouseVal);
@@ -71,13 +71,14 @@ private:
     KeyboardButtonMapping _keyboard_host_mapRightStickDown;
     KeyboardButtonMapping _keyboard_host_mapRightStickLeft;
     KeyboardButtonMapping _keyboard_host_mapRightStickRight;
-    GamepadState _keyboard_host_state;
-    bool _keyboard_host_mounted;
-    uint8_t _keyboard_dev_addr;
-    uint8_t _keyboard_instance;
-    bool _mouse_host_mounted;
-    uint8_t _mouse_dev_addr;
-    uint8_t _mouse_instance;
+    GamepadState _keyboard_host_state[2];
+    uint8_t _keyboard_dev_addr[2];
+    uint8_t _keyboard_instance[2];
+    uint8_t _keyboard_slot_count;
+    uint8_t _mouse_dev_addr[2];
+    uint8_t _mouse_instance[2];
+    uint8_t _mouse_slot_count;
+    GamepadState _mouse_host_state[2];
     uint16_t mouseLeftMapping;
     uint16_t mouseMiddleMapping;
     uint16_t mouseRightMapping;
