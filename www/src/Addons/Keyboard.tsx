@@ -252,7 +252,7 @@ const Keyboard = ({
 							id="keyboardHostMouseReportLayout"
 							value={Number(values.keyboardHostMouseReportLayout) || 0}
 							error={errors.keyboardHostMouseReportLayout}
-							onChange={handleChange}
+							onChange={(e) => setFieldValue('keyboardHostMouseReportLayout', parseInt(e.target.value, 10))}
 						>
 							<option value={0}>{t('AddonsConfig:keyboard-host-mouse-layout-standard')}</option>
 							<option value={1}>{t('AddonsConfig:keyboard-host-mouse-layout-y-after-wheel')}</option>

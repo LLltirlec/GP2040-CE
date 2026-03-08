@@ -1,6 +1,7 @@
 #include "addons/keyboard_host_listener.h"
 #include "drivermanager.h"
 #include "storagemanager.h"
+#include "mouse_report_debug.h"
 #include "class/hid/hid_host.h"
 #include "host/usbh_pvt.h"
 #include <algorithm>
@@ -379,8 +380,10 @@ int32_t KeyboardHostListener::scaleMouseDeltaToJoystick(int8_t mouseVal) {
 
 void KeyboardHostListener::process_mouse_report(uint8_t slot, uint8_t const * report, uint16_t len)
 {
+  // Debug: expose raw report for axis-order detection (GET /api/getMouseReportDebug)
+  mouse_report_debug_store(report, len);
+
   // HID report may include report_id as first byte (composite device). Boot mouse = 4 bytes (no ID).
-  // Layout: [report_id?] buttons, x, y [, wheel] or buttons, x, wheel, y (non-standard).
   if (len < 3) return;
   uint8_t const * data = (len >= 5) ? (report + 1) : report;
   uint8_t buttons = data[0];

@@ -265,6 +265,7 @@ src/usbdriver.cpp
 src/usbhostmanager.cpp
 src/config_legacy.cpp
 src/config_utils.cpp
+src/mouse_report_debug.cpp
 src/webconfig.cpp
 src/addons/analog.cpp
 src/addons/board_led.cpp

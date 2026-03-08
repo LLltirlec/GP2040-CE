@@ -36,6 +36,7 @@
 #include "lwip/def.h"
 #include "lwip/mem.h"
 #include "addons/input_macro.h"
+#include "mouse_report_debug.h"
 
 #define PATH_CGI_ACTION "/cgi/action"
 
@@ -1885,9 +1886,15 @@ std::string setAddonOptions()
     docToValue(keyboardHostOptions.movementMode, doc, "keyboardHostMouseMovement");
     docToValue(keyboardHostOptions.mouseYAxisAfterWheel, doc, "keyboardHostMouseYAxisAfterWheel");
     docToValue(keyboardHostOptions.mouseWheelBeforeAxes, doc, "keyboardHostMouseWheelBeforeAxes");
-    docToValue(keyboardHostOptions.mouseReportLayout, doc, "keyboardHostMouseReportLayout");
-    if (!doc.containsKey("keyboardHostMouseReportLayout") && (doc.containsKey("keyboardHostMouseWheelBeforeAxes") || doc.containsKey("keyboardHostMouseYAxisAfterWheel"))) {
+    if (doc.containsKey("keyboardHostMouseReportLayout")) {
+        int layout = doc["keyboardHostMouseReportLayout"].as<int>();
+        if (layout >= 0 && layout <= 2) {
+            keyboardHostOptions.mouseReportLayout = static_cast<MouseReportLayout>(layout);
+            keyboardHostOptions.has_mouseReportLayout = true;
+        }
+    } else if (doc.containsKey("keyboardHostMouseWheelBeforeAxes") || doc.containsKey("keyboardHostMouseYAxisAfterWheel")) {
         keyboardHostOptions.mouseReportLayout = keyboardHostOptions.mouseWheelBeforeAxes ? MOUSE_LAYOUT_WHEEL_BEFORE_AXES : (keyboardHostOptions.mouseYAxisAfterWheel ? MOUSE_LAYOUT_Y_AFTER_WHEEL : MOUSE_LAYOUT_STANDARD);
+        keyboardHostOptions.has_mouseReportLayout = true;
     }
 
     GamepadUSBHostOptions& gamepadUSBHostOptions = Storage::getInstance().getAddonOptions().gamepadUSBHostOptions;
@@ -2757,6 +2764,21 @@ std:: string getJoystickCenter2() {
     return serialize_json(doc);
 }
 
+// Debug: last raw HID mouse report bytes (order of axes). Move/scroll mouse then GET this.
+std::string getMouseReportDebug() {
+    const size_t capacity = JSON_OBJECT_SIZE(2) + JSON_ARRAY_SIZE(MOUSE_REPORT_DEBUG_MAX_LEN);
+    DynamicJsonDocument doc(capacity);
+    uint8_t buf[MOUSE_REPORT_DEBUG_MAX_LEN];
+    uint16_t len = 0;
+    mouse_report_debug_get(buf, sizeof(buf), &len);
+    doc["len"] = len;
+    JsonArray arr = doc.createNestedArray("bytes");
+    for (uint16_t i = 0; i < len; i++)
+        arr.add(buf[i]);
+    doc["description"] = "Last HID mouse report: byte0=buttons, byte1..=axes (order as sent by device). Move mouse or scroll then refresh.";
+    return serialize_json(doc);
+}
+
 typedef std::string (*HandlerFuncPtr)();
 static const std::pair<const char*, HandlerFuncPtr> handlerFuncs[] =
 {
@@ -2804,6 +2826,7 @@ static const std::pair<const char*, HandlerFuncPtr> handlerFuncs[] =
     { "/api/getHeldPins", getHeldPins },
     { "/api/abortGetHeldPins", abortGetHeldPins },
     { "/api/getUsedPins", getUsedPins },
+    { "/api/getMouseReportDebug", getMouseReportDebug },
     { "/api/getConfig", getConfig },
     { "/api/getJoystickCenter", getJoystickCenter },
     { "/api/getJoystickCenter2", getJoystickCenter2 },
