@@ -125,32 +125,30 @@ void KeyboardHostListener::process() {
       merged_kb.buttons |= _keyboard_host_state[i].buttons;
       merged_kb.lt |= _keyboard_host_state[i].lt;
       merged_kb.rt |= _keyboard_host_state[i].rt;
-      if (merged_kb.lx == joystickMid && merged_kb.ly == joystickMid &&
-          merged_kb.rx == joystickMid && merged_kb.ry == joystickMid) {
-        if (_keyboard_host_state[i].lx != joystickMid || _keyboard_host_state[i].ly != joystickMid ||
-            _keyboard_host_state[i].rx != joystickMid || _keyboard_host_state[i].ry != joystickMid) {
-          merged_kb.lx = _keyboard_host_state[i].lx;
-          merged_kb.ly = _keyboard_host_state[i].ly;
-          merged_kb.rx = _keyboard_host_state[i].rx;
-          merged_kb.ry = _keyboard_host_state[i].ry;
-        }
-      }
+      // Merge each axis independently so keyboard left stick + mouse right stick work together
+      if (merged_kb.lx == joystickMid && _keyboard_host_state[i].lx != joystickMid)
+        merged_kb.lx = _keyboard_host_state[i].lx;
+      if (merged_kb.ly == joystickMid && _keyboard_host_state[i].ly != joystickMid)
+        merged_kb.ly = _keyboard_host_state[i].ly;
+      if (merged_kb.rx == joystickMid && _keyboard_host_state[i].rx != joystickMid)
+        merged_kb.rx = _keyboard_host_state[i].rx;
+      if (merged_kb.ry == joystickMid && _keyboard_host_state[i].ry != joystickMid)
+        merged_kb.ry = _keyboard_host_state[i].ry;
     }
     for (uint8_t i = 0; i < _mouse_slot_count; i++) {
       merged_kb.dpad |= _mouse_host_state[i].dpad;
       merged_kb.buttons |= _mouse_host_state[i].buttons;
       merged_kb.lt |= _mouse_host_state[i].lt;
       merged_kb.rt |= _mouse_host_state[i].rt;
-      if (merged_kb.lx == joystickMid && merged_kb.ly == joystickMid &&
-          merged_kb.rx == joystickMid && merged_kb.ry == joystickMid) {
-        if (_mouse_host_state[i].lx != joystickMid || _mouse_host_state[i].ly != joystickMid ||
-            _mouse_host_state[i].rx != joystickMid || _mouse_host_state[i].ry != joystickMid) {
-          merged_kb.lx = _mouse_host_state[i].lx;
-          merged_kb.ly = _mouse_host_state[i].ly;
-          merged_kb.rx = _mouse_host_state[i].rx;
-          merged_kb.ry = _mouse_host_state[i].ry;
-        }
-      }
+      // Merge each axis independently so keyboard left stick + mouse right stick work together
+      if (merged_kb.lx == joystickMid && _mouse_host_state[i].lx != joystickMid)
+        merged_kb.lx = _mouse_host_state[i].lx;
+      if (merged_kb.ly == joystickMid && _mouse_host_state[i].ly != joystickMid)
+        merged_kb.ly = _mouse_host_state[i].ly;
+      if (merged_kb.rx == joystickMid && _mouse_host_state[i].rx != joystickMid)
+        merged_kb.rx = _mouse_host_state[i].rx;
+      if (merged_kb.ry == joystickMid && _mouse_host_state[i].ry != joystickMid)
+        merged_kb.ry = _mouse_host_state[i].ry;
     }
     gamepad->state.dpad     |= merged_kb.dpad;
     gamepad->state.buttons  |= merged_kb.buttons;
