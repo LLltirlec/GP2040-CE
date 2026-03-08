@@ -93,6 +93,12 @@
 // Enable X-Input host config
 #define CFG_TUH_XINPUT      1
 
+// Max USB host events processed per tuh_task() call when using OPT_OS_PICO.
+// Lower = more responsive main loop (less lag) when 2 host ports are active; higher = more throughput.
+#ifndef CFG_TUH_MAX_EVENTS_PER_TASK
+#define CFG_TUH_MAX_EVENTS_PER_TASK 4
+#endif
+
 # define TUH_OPT_RHPORT 1
 // CFG_TUSB_DEBUG is defined by compiler in DEBUG build
 // #define CFG_TUSB_DEBUG           0

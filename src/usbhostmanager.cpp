@@ -60,7 +60,17 @@ void USBHostManager::pushListener(USBListener * usbListener) { // If anything ne
 // Host manager should call tuh_task as fast as possible
 void USBHostManager::process() {
     if ( tuh_ready ){
-        tuh_task();
+        bool bothPorts = PeripheralManager::getInstance().isUSBEnabled(0) && PeripheralManager::getInstance().isUSBEnabled(1);
+        if (bothPorts) {
+            // With two ports, process USB host several times per loop to drain the queue
+            // without blocking too long (tuh_task processes at most CFG_TUH_MAX_EVENTS_PER_TASK per call)
+            for (int i = 0; i < 3; i++) {
+                tuh_task();
+                if (!tuh_task_event_ready()) break;
+            }
+        } else {
+            tuh_task();
+        }
     }
 }
 
