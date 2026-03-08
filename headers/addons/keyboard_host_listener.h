@@ -79,6 +79,11 @@ private:
     uint8_t _mouse_instance[2];
     uint8_t _mouse_slot_count;
     GamepadState _mouse_host_state[2];
+    /** int32 accumulators for mouse stick axes so small deltas aren't lost (smoother, PC-like) */
+    int32_t _mouse_accumulator_lx[2];
+    int32_t _mouse_accumulator_ly[2];
+    int32_t _mouse_accumulator_rx[2];
+    int32_t _mouse_accumulator_ry[2];
     uint16_t mouseLeftMapping;
     uint16_t mouseMiddleMapping;
     uint16_t mouseRightMapping;

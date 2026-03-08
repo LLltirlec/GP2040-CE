@@ -9,6 +9,7 @@
 #define DEV_ADDR_NONE 0xFF
 #define MAX_KEYBOARD_MOUSE_SLOTS 2
 #define MOUSE_SCALE_FACTOR (GAMEPAD_JOYSTICK_MID / 127)
+#define MOUSE_STICK_HOLD_MS 32  // Return to center after no mouse move (short = camera stops when you stop; was 16ms, 32ms avoids reset on brief report gaps)
 #define GAMEPAD_JOYSTICK_MIN_I32 static_cast<int32_t>(GAMEPAD_JOYSTICK_MIN)
 #define GAMEPAD_JOYSTICK_MAX_I32 static_cast<int32_t>(GAMEPAD_JOYSTICK_MAX)
 
@@ -70,7 +71,7 @@ void KeyboardHostListener::setup() {
   mouseMovementMode = keyboardHostOptions.movementMode;
   mouseReportLayout = keyboardHostOptions.mouseReportLayout;
   mouseSensitivityScale = mouseSensitivity / 10.0f;
-  mouseResetMS = 16;
+  mouseResetMS = MOUSE_STICK_HOLD_MS;
   mouseResetNextTimer = 0;
 
   joystickMid = DriverManager::getInstance().getDriver() != nullptr ?
@@ -99,6 +100,12 @@ void KeyboardHostListener::setup() {
     _mouse_host_state[i].ry = joystickMid;
     _mouse_host_state[i].lt = 0;
     _mouse_host_state[i].rt = 0;
+  }
+  for (uint8_t i = 0; i < MAX_KEYBOARD_MOUSE_SLOTS; i++) {
+    _mouse_accumulator_lx[i] = joystickMid;
+    _mouse_accumulator_ly[i] = joystickMid;
+    _mouse_accumulator_rx[i] = joystickMid;
+    _mouse_accumulator_ry[i] = joystickMid;
   }
 
   mouseX = 0;
@@ -172,13 +179,17 @@ void KeyboardHostListener::process() {
         gamepad->auxState.sensors.mouse.z = mouseZ;
         mouseActive = false;
     } else if(mouseResetNextTimer < getMillis()) {
-        // Since mouse position reports only happen when the mouse is moved, we need to reset the position manually
-       for (uint8_t i = 0; i < _mouse_slot_count; i++) {
-         _mouse_host_state[i].lx = joystickMid;
-         _mouse_host_state[i].ly = joystickMid;
-         _mouse_host_state[i].rx = joystickMid;
-         _mouse_host_state[i].ry = joystickMid;
-       }
+        // Return stick to center only after no mouse movement for MOUSE_STICK_HOLD_MS (PC-like hold)
+        for (uint8_t i = 0; i < _mouse_slot_count; i++) {
+          _mouse_host_state[i].lx = joystickMid;
+          _mouse_host_state[i].ly = joystickMid;
+          _mouse_host_state[i].rx = joystickMid;
+          _mouse_host_state[i].ry = joystickMid;
+          _mouse_accumulator_lx[i] = joystickMid;
+          _mouse_accumulator_ly[i] = joystickMid;
+          _mouse_accumulator_rx[i] = joystickMid;
+          _mouse_accumulator_ry[i] = joystickMid;
+        }
     }
   }
 }
@@ -433,22 +444,18 @@ void KeyboardHostListener::process_mouse_report(uint8_t slot, uint8_t const * re
 
   mouseResetNextTimer = getMillis() + mouseResetMS;
 
-  // Only mouse X/Y deltas move the stick; wheel is never applied to stick
+  // Accumulate in int32 for smoother response (no lost sub-step precision)
   int32_t dx = scaleMouseDeltaToJoystick(x);
   int32_t dy = scaleMouseDeltaToJoystick(y);
   if (mouseMovementMode == MOUSE_MOVEMENT_LEFT_ANALOG) {
-    _mouse_host_state[slot].lx = static_cast<uint16_t>(std::clamp(
-        static_cast<int32_t>(_mouse_host_state[slot].lx) + dx,
-        GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32));
-    _mouse_host_state[slot].ly = static_cast<uint16_t>(std::clamp(
-        static_cast<int32_t>(_mouse_host_state[slot].ly) + dy,
-        GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32));
+    _mouse_accumulator_lx[slot] = std::clamp(_mouse_accumulator_lx[slot] + dx, GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32);
+    _mouse_accumulator_ly[slot] = std::clamp(_mouse_accumulator_ly[slot] + dy, GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32);
+    _mouse_host_state[slot].lx = static_cast<uint16_t>(_mouse_accumulator_lx[slot]);
+    _mouse_host_state[slot].ly = static_cast<uint16_t>(_mouse_accumulator_ly[slot]);
   } else if (mouseMovementMode == MOUSE_MOVEMENT_RIGHT_ANALOG) {
-    _mouse_host_state[slot].rx = static_cast<uint16_t>(std::clamp(
-        static_cast<int32_t>(_mouse_host_state[slot].rx) + dx,
-        GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32));
-    _mouse_host_state[slot].ry = static_cast<uint16_t>(std::clamp(
-        static_cast<int32_t>(_mouse_host_state[slot].ry) + dy,
-        GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32));
+    _mouse_accumulator_rx[slot] = std::clamp(_mouse_accumulator_rx[slot] + dx, GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32);
+    _mouse_accumulator_ry[slot] = std::clamp(_mouse_accumulator_ry[slot] + dy, GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32);
+    _mouse_host_state[slot].rx = static_cast<uint16_t>(_mouse_accumulator_rx[slot]);
+    _mouse_host_state[slot].ry = static_cast<uint16_t>(_mouse_accumulator_ry[slot]);
   }
 }
