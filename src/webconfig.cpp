@@ -1,4 +1,5 @@
 #include "config.pb.h"
+#include "enums.pb.h"
 #include "base64.h"
 #include "hardware/adc.h"
 #include "helper.h"
@@ -1886,7 +1887,7 @@ std::string setAddonOptions()
     docToValue(keyboardHostOptions.mouseWheelBeforeAxes, doc, "keyboardHostMouseWheelBeforeAxes");
     docToValue(keyboardHostOptions.mouseReportLayout, doc, "keyboardHostMouseReportLayout");
     if (!doc.containsKey("keyboardHostMouseReportLayout") && (doc.containsKey("keyboardHostMouseWheelBeforeAxes") || doc.containsKey("keyboardHostMouseYAxisAfterWheel"))) {
-        keyboardHostOptions.mouseReportLayout = keyboardHostOptions.mouseWheelBeforeAxes ? 2 : (keyboardHostOptions.mouseYAxisAfterWheel ? 1 : 0);
+        keyboardHostOptions.mouseReportLayout = keyboardHostOptions.mouseWheelBeforeAxes ? MOUSE_LAYOUT_WHEEL_BEFORE_AXES : (keyboardHostOptions.mouseYAxisAfterWheel ? MOUSE_LAYOUT_Y_AFTER_WHEEL : MOUSE_LAYOUT_STANDARD);
     }
 
     GamepadUSBHostOptions& gamepadUSBHostOptions = Storage::getInstance().getAddonOptions().gamepadUSBHostOptions;

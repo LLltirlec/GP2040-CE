@@ -1121,7 +1121,7 @@ void ConfigUtils::initUnsetPropertiesWithDefaults(Config& config)
     INIT_UNSET_PROPERTY(config.addonOptions.keyboardHostOptions, mouseSensitivity, KEYBOARD_HOST_MOUSE_SENSITIVITY);
     INIT_UNSET_PROPERTY(config.addonOptions.keyboardHostOptions, mouseYAxisAfterWheel, false);
     INIT_UNSET_PROPERTY(config.addonOptions.keyboardHostOptions, mouseWheelBeforeAxes, false);
-    INIT_UNSET_PROPERTY(config.addonOptions.keyboardHostOptions, mouseReportLayout, 0);
+    INIT_UNSET_PROPERTY(config.addonOptions.keyboardHostOptions, mouseReportLayout, MOUSE_LAYOUT_STANDARD);
 
     // addonOptions.focusModeOptions
     INIT_UNSET_PROPERTY(config.addonOptions.focusModeOptions, enabled, !!FOCUS_MODE_ENABLED);
