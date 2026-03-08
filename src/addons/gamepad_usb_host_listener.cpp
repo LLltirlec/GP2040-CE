@@ -189,8 +189,9 @@ void GamepadUSBHostListener::report_received(uint8_t dev_addr, uint8_t instance,
     // Interface protocol (hid_interface_protocol_enum_t)
     uint8_t const itf_protocol = tuh_hid_interface_protocol(dev_addr, instance);
 
-    // stop execution if a keyboard or mouse is mounted
+    // Keyboard and mouse are handled by Keyboard Host addon only
     if ( itf_protocol == HID_ITF_PROTOCOL_KEYBOARD ) return;
+    if ( itf_protocol == HID_ITF_PROTOCOL_MOUSE ) return;
 
     process_ctrlr_report(dev_addr, report, len);
 }

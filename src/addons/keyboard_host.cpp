@@ -8,7 +8,8 @@
 
 bool KeyboardHostAddon::available() {
   const KeyboardHostOptions& keyboardHostOptions = Storage::getInstance().getAddonOptions().keyboardHostOptions;
-	return keyboardHostOptions.enabled && PeripheralManager::getInstance().isUSBEnabled(0);
+	// Keyboard/mouse can be on either USB host port (0 or 1)
+	return keyboardHostOptions.enabled && (PeripheralManager::getInstance().isUSBEnabled(0) || PeripheralManager::getInstance().isUSBEnabled(1));
 }
 
 void KeyboardHostAddon::setup() {
