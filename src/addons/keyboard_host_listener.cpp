@@ -10,10 +10,14 @@
 #define DEV_ADDR_NONE 0xFF
 #define MAX_KEYBOARD_MOUSE_SLOTS 2
 #define MOUSE_SCALE_FACTOR (GAMEPAD_JOYSTICK_MID / 127)
-#define MOUSE_STICK_HOLD_MS 8   // Return to center when mouse stops
-#define MOUSE_DEADZONE 2        // ignore |dx|,|dy| <= this (reduces jitter)
-// Gamepad_Converter-style: sqrt curve for fluid right stick (small delta → gentle, big delta → strong)
-#define RIGHT_STICK_SQRT_COEF 12  // out = coef*sqrt(|d|+2), like Gamepad_Converter
+#define MOUSE_STICK_HOLD_MS 8   // No report → stick to center (legacy / left stick)
+// rlm2c-style: velocity = sum(deltas in window)/window_ms; spin_period = tick every N ms even without mouse.
+#define MOUSE_SAMPLE_WINDOW_MS 4
+#define MOUSE_SPIN_PERIOD_MS 2
+// UNPOWER-style: exponent = 1/game_power. 0.5 cancels game pow(x,2) → linear; 0.6 = slightly sharper center.
+#define MOUSE_RESPONSE_EXPONENT 0.5f
+// UNDEADZONE (JSM): when delta != 0, output at least this fraction of center so we jump past game's inner deadzone.
+#define MOUSE_UNDEADZONE_FRAC 0.25f
 #define GAMEPAD_JOYSTICK_MIN_I32 static_cast<int32_t>(GAMEPAD_JOYSTICK_MIN)
 #define GAMEPAD_JOYSTICK_MAX_I32 static_cast<int32_t>(GAMEPAD_JOYSTICK_MAX)
 
@@ -110,7 +114,14 @@ void KeyboardHostListener::setup() {
     _mouse_accumulator_ly[i] = joystickMid;
     _mouse_accumulator_rx[i] = joystickMid;
     _mouse_accumulator_ry[i] = joystickMid;
+    _mouse_velocity_head[i] = 0;
+    for (int j = 0; j < MOUSE_VELOCITY_BUF_SIZE; j++) {
+      _mouse_velocity_buf[i][j].time_ms = 0;
+      _mouse_velocity_buf[i][j].dx = 0;
+      _mouse_velocity_buf[i][j].dy = 0;
+    }
   }
+  _mouse_stick_last_update_ms = 0;
 
   mouseX = 0;
   mouseY = 0;
@@ -182,8 +193,39 @@ void KeyboardHostListener::process() {
         gamepad->auxState.sensors.mouse.y = mouseY;
         gamepad->auxState.sensors.mouse.z = mouseZ;
         mouseActive = false;
-    } else if(mouseResetNextTimer < getMillis()) {
-        // Return stick to center after no mouse movement (like DualShock4 recenter)
+    }
+
+    // rlm2c-style: every spin_period_ms recompute right stick from velocity window (even if no new mouse report).
+    uint32_t now_ms = getMillis();
+    if (mouseMovementMode == MOUSE_MOVEMENT_RIGHT_ANALOG &&
+        (now_ms - _mouse_stick_last_update_ms) >= MOUSE_SPIN_PERIOD_MS) {
+      _mouse_stick_last_update_ms = now_ms;
+      int32_t mid = static_cast<int32_t>(joystickMid);
+      float window_f = static_cast<float>(MOUSE_SAMPLE_WINDOW_MS);
+      for (uint8_t i = 0; i < _mouse_slot_count; i++) {
+        int32_t sum_dx = 0, sum_dy = 0;
+        for (int j = 0; j < MOUSE_VELOCITY_BUF_SIZE; j++) {
+          const MouseDeltaSample& s = _mouse_velocity_buf[i][j];
+          if (s.time_ms != 0 && (now_ms - s.time_ms) <= MOUSE_SAMPLE_WINDOW_MS) {
+            sum_dx += s.dx;
+            sum_dy += s.dy;
+          }
+        }
+        float vel_x = window_f > 0.0f ? (static_cast<float>(sum_dx) / window_f) : 0.0f;
+        float vel_y = window_f > 0.0f ? (static_cast<float>(sum_dy) / window_f) : 0.0f;
+        float norm_x = (vel_x / 127.0f) * mouseSensitivityScale;
+        float norm_y = (vel_y / 127.0f) * mouseSensitivityScale;
+        if (norm_x > 1.0f) norm_x = 1.0f; else if (norm_x < -1.0f) norm_x = -1.0f;
+        if (norm_y > 1.0f) norm_y = 1.0f; else if (norm_y < -1.0f) norm_y = -1.0f;
+        int32_t off_x = static_cast<int32_t>(norm_x * static_cast<float>(mid));
+        int32_t off_y = static_cast<int32_t>(norm_y * static_cast<float>(mid));
+        _mouse_host_state[i].rx = static_cast<uint16_t>(std::clamp(mid + off_x, GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32));
+        _mouse_host_state[i].ry = static_cast<uint16_t>(std::clamp(mid + off_y, GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32));
+      }
+    }
+
+    if (mouseResetNextTimer < now_ms) {
+        // Return left stick / accumulators to center after no mouse movement
         for (uint8_t i = 0; i < _mouse_slot_count; i++) {
           _mouse_host_state[i].lx = joystickMid;
           _mouse_host_state[i].ly = joystickMid;
@@ -391,15 +433,23 @@ int32_t KeyboardHostListener::scaleMouseDeltaToJoystick(int8_t mouseVal) {
   return static_cast<int32_t>(mouseVal) * mouseSensitivityScale * MOUSE_SCALE_FACTOR;
 }
 
-// Gamepad_Converter-style: sqrt curve so small movements are gentle, fast flicks still strong (fluid feel)
-static int32_t mouseConvertToStickOffset(int8_t d, int32_t joystickMid, float sensScale) {
-  if (d == 0) return 0;
-  int32_t ad = d < 0 ? -static_cast<int32_t>(d) : static_cast<int32_t>(d);
-  int32_t out = static_cast<int32_t>(RIGHT_STICK_SQRT_COEF * sqrtf(static_cast<float>(ad) + 2.0f));
-  if (d < 0) out = -out;
-  const int32_t lim = 127;
-  out = std::clamp(out, -lim, lim);
-  return static_cast<int32_t>(static_cast<float>(out) * sensScale * static_cast<float>(joystickMid) / 127.0f);
+// Right stick: delta this report → stick value this tick. No accumulation (JSM AIM-style).
+// UNPOWER: curved = sign*pow(|dx|, exponent) so we can cancel game's power curve (e.g. exponent 0.5 if game uses x²).
+// UNDEADZONE: when delta != 0, ensure |offset| >= center*MOUSE_UNDEADZONE_FRAC so game sees input past its deadzone.
+static int32_t mouseDeltaToStickOffset(int8_t delta, int32_t center, float sensScale) {
+  if (delta == 0) return 0;
+  float dx = static_cast<float>(delta) * sensScale / 127.0f;
+  if (dx > 1.0f) dx = 1.0f;
+  else if (dx < -1.0f) dx = -1.0f;
+  float sign = (dx >= 0.0f) ? 1.0f : -1.0f;
+  float curved = sign * powf(fabsf(dx), MOUSE_RESPONSE_EXPONENT);
+  int32_t off = static_cast<int32_t>(curved * static_cast<float>(center));
+  int32_t minOff = static_cast<int32_t>(MOUSE_UNDEADZONE_FRAC * static_cast<float>(center));
+  if (minOff > 0 && off != 0) {
+    if (off > 0 && off < minOff) off = minOff;
+    else if (off < 0 && -off < minOff) off = -minOff;
+  }
+  return std::clamp(off, -center, center);
 }
 
 void KeyboardHostListener::process_mouse_report(uint8_t slot, uint8_t const * report, uint16_t len)
@@ -461,20 +511,21 @@ void KeyboardHostListener::process_mouse_report(uint8_t slot, uint8_t const * re
 
   int32_t dx = scaleMouseDeltaToJoystick(x);
   int32_t dy = scaleMouseDeltaToJoystick(y);
+
   if (mouseMovementMode == MOUSE_MOVEMENT_LEFT_ANALOG) {
-    // Left stick: position mode (accumulate) for movement
     _mouse_accumulator_lx[slot] = std::clamp(_mouse_accumulator_lx[slot] + dx, GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32);
     _mouse_accumulator_ly[slot] = std::clamp(_mouse_accumulator_ly[slot] + dy, GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32);
     _mouse_host_state[slot].lx = static_cast<uint16_t>(_mouse_accumulator_lx[slot]);
     _mouse_host_state[slot].ly = static_cast<uint16_t>(_mouse_accumulator_ly[slot]);
   } else if (mouseMovementMode == MOUSE_MOVEMENT_RIGHT_ANALOG) {
-    // Short path like Gamepad_Converter: HID report → sqrt curve → stick (no smoothing state)
-    int8_t ax = (x >= -MOUSE_DEADZONE && x <= MOUSE_DEADZONE) ? 0 : x;
-    int8_t ay = (y >= -MOUSE_DEADZONE && y <= MOUSE_DEADZONE) ? 0 : y;
-    int32_t mid = static_cast<int32_t>(joystickMid);
-    int32_t vx = mouseConvertToStickOffset(ax, mid, mouseSensitivityScale);
-    int32_t vy = mouseConvertToStickOffset(ay, mid, mouseSensitivityScale);
-    _mouse_host_state[slot].rx = static_cast<uint16_t>(std::clamp(mid + vx, GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32));
-    _mouse_host_state[slot].ry = static_cast<uint16_t>(std::clamp(mid + vy, GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32));
+    // rlm2c-style: push delta into sliding window; process() will compute velocity every spin_period_ms.
+    if (slot < _mouse_slot_count) {
+      uint32_t t = getMillis();
+      uint8_t h = _mouse_velocity_head[slot];
+      _mouse_velocity_buf[slot][h].time_ms = t;
+      _mouse_velocity_buf[slot][h].dx = x;
+      _mouse_velocity_buf[slot][h].dy = y;
+      _mouse_velocity_head[slot] = (h + 1) % MOUSE_VELOCITY_BUF_SIZE;
+    }
   }
 }

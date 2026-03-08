@@ -79,11 +79,17 @@ private:
     uint8_t _mouse_instance[2];
     uint8_t _mouse_slot_count;
     GamepadState _mouse_host_state[2];
-    /** int32 accumulators for mouse stick axes so small deltas aren't lost (smoother, PC-like) */
+    /** int32 accumulators for mouse stick axes so both X and Y work when reports may be split */
     int32_t _mouse_accumulator_lx[2];
     int32_t _mouse_accumulator_ly[2];
     int32_t _mouse_accumulator_rx[2];
     int32_t _mouse_accumulator_ry[2];
+    /** rlm2c-style: sliding window of (time_ms, dx, dy) for velocity-based right stick */
+    static const int MOUSE_VELOCITY_BUF_SIZE = 8;
+    struct MouseDeltaSample { uint32_t time_ms; int8_t dx; int8_t dy; };
+    MouseDeltaSample _mouse_velocity_buf[2][MOUSE_VELOCITY_BUF_SIZE];
+    uint8_t _mouse_velocity_head[2];
+    uint32_t _mouse_stick_last_update_ms;
     uint16_t mouseLeftMapping;
     uint16_t mouseMiddleMapping;
     uint16_t mouseRightMapping;
