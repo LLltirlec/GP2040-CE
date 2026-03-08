@@ -384,36 +384,35 @@ void KeyboardHostListener::process_mouse_report(uint8_t slot, uint8_t const * re
   mouse_report_debug_store(report, len);
 
   // HID report may include report_id as first byte (composite device). Boot mouse = 4 bytes (no ID).
+  // Xiaomi silent mouse (Linux mi_silent_mouse_rdesc_fixed): Report ID 3, then buttons, X, Y, wheel
+  // in the descriptor; some units send bytes as buttons,X,wheel,Y — use Y_AFTER_WHEEL in that case.
   if (len < 3) return;
   uint8_t const * data = (len >= 5) ? (report + 1) : report;
+  uint8_t data_len = (len >= 5) ? (len - 1) : len;
   uint8_t buttons = data[0];
   int8_t x;
   int8_t y;
   int8_t wheel;
-  // Read option at runtime so webconfig changes apply without reboot
   uint8_t layout = Storage::getInstance().getAddonOptions().keyboardHostOptions.mouseReportLayout;
   if (layout > MOUSE_LAYOUT_WHEEL_BEFORE_AXES)
     layout = MOUSE_LAYOUT_STANDARD;
-  // Layout: [report_id?] buttons, then either (x,y,wheel), (x,wheel,y), or (wheel,x,y).
-  if (len >= 4) {
+  // Optional: for Xiaomi silent mouse (Report ID 3, 5 bytes) hardware often sends buttons,X,wheel,Y;
+  // if so, set "Y after wheel" in config. Descriptor (mi_silent_mouse_rdesc_fixed) lists X,Y,wheel order.
+  if (data_len >= 4) {
     if (layout == MOUSE_LAYOUT_WHEEL_BEFORE_AXES) {
-      // buttons, wheel, x, y
       wheel = (int8_t)data[1];
       x = (int8_t)data[2];
       y = (int8_t)data[3];
     } else if (layout == MOUSE_LAYOUT_Y_AFTER_WHEEL) {
-      // buttons, x, wheel, y
       x = (int8_t)data[1];
       wheel = (int8_t)data[2];
       y = (int8_t)data[3];
     } else {
-      // MOUSE_LAYOUT_STANDARD: buttons, x, y, wheel
       x = (int8_t)data[1];
       y = (int8_t)data[2];
       wheel = (int8_t)data[3];
     }
   } else {
-    // 3-byte report: buttons, x, y only (no wheel). Never use wheel for stick; decoding options don't apply.
     x = (int8_t)data[1];
     y = (int8_t)data[2];
     wheel = 0;
