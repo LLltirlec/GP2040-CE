@@ -9,7 +9,8 @@
 #define DEV_ADDR_NONE 0xFF
 #define MAX_KEYBOARD_MOUSE_SLOTS 2
 #define MOUSE_SCALE_FACTOR (GAMEPAD_JOYSTICK_MID / 127)
-#define MOUSE_STICK_HOLD_MS 32  // Return to center after no mouse move (short = camera stops when you stop; was 16ms, 32ms avoids reset on brief report gaps)
+#define MOUSE_STICK_HOLD_MS 8   // Return to center as soon as mouse stops (PC-like: camera stops when you stop)
+#define RIGHT_STICK_VELOCITY_SCALE 2.0f  // Right stick (camera): stick = velocity, scale up for sharp response
 #define GAMEPAD_JOYSTICK_MIN_I32 static_cast<int32_t>(GAMEPAD_JOYSTICK_MIN)
 #define GAMEPAD_JOYSTICK_MAX_I32 static_cast<int32_t>(GAMEPAD_JOYSTICK_MAX)
 
@@ -444,18 +445,21 @@ void KeyboardHostListener::process_mouse_report(uint8_t slot, uint8_t const * re
 
   mouseResetNextTimer = getMillis() + mouseResetMS;
 
-  // Accumulate in int32 for smoother response (no lost sub-step precision)
   int32_t dx = scaleMouseDeltaToJoystick(x);
   int32_t dy = scaleMouseDeltaToJoystick(y);
   if (mouseMovementMode == MOUSE_MOVEMENT_LEFT_ANALOG) {
+    // Left stick: position mode (accumulate) for movement
     _mouse_accumulator_lx[slot] = std::clamp(_mouse_accumulator_lx[slot] + dx, GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32);
     _mouse_accumulator_ly[slot] = std::clamp(_mouse_accumulator_ly[slot] + dy, GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32);
     _mouse_host_state[slot].lx = static_cast<uint16_t>(_mouse_accumulator_lx[slot]);
     _mouse_host_state[slot].ly = static_cast<uint16_t>(_mouse_accumulator_ly[slot]);
   } else if (mouseMovementMode == MOUSE_MOVEMENT_RIGHT_ANALOG) {
-    _mouse_accumulator_rx[slot] = std::clamp(_mouse_accumulator_rx[slot] + dx, GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32);
-    _mouse_accumulator_ry[slot] = std::clamp(_mouse_accumulator_ry[slot] + dy, GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32);
-    _mouse_host_state[slot].rx = static_cast<uint16_t>(_mouse_accumulator_rx[slot]);
-    _mouse_host_state[slot].ry = static_cast<uint16_t>(_mouse_accumulator_ry[slot]);
+    // Right stick (camera): velocity mode — stick directly follows mouse movement, no accumulation (PC-like, sharp)
+    int32_t vx = static_cast<int32_t>(dx * RIGHT_STICK_VELOCITY_SCALE);
+    int32_t vy = static_cast<int32_t>(dy * RIGHT_STICK_VELOCITY_SCALE);
+    _mouse_host_state[slot].rx = static_cast<uint16_t>(std::clamp(
+        static_cast<int32_t>(joystickMid) + vx, GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32));
+    _mouse_host_state[slot].ry = static_cast<uint16_t>(std::clamp(
+        static_cast<int32_t>(joystickMid) + vy, GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32));
   }
 }
