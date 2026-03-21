@@ -14,7 +14,7 @@
 // UNDEADZONE (JSM): any non-zero input remaps from [0,1] to [frac,1], jumping past game's inner deadzone.
 #define MOUSE_UNDEADZONE_FRAC 0.10f
 // EMA smoothing: 0.0 = no change, 1.0 = no smoothing (raw). 0.5 = half-life of 1 sample.
-#define MOUSE_SMOOTHING_ALPHA 0.5f
+#define MOUSE_SMOOTHING_ALPHA 0.2f
 #define GAMEPAD_JOYSTICK_MIN_I32 static_cast<int32_t>(GAMEPAD_JOYSTICK_MIN)
 #define GAMEPAD_JOYSTICK_MAX_I32 static_cast<int32_t>(GAMEPAD_JOYSTICK_MAX)
 
