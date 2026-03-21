@@ -11,11 +11,6 @@
 #define MAX_KEYBOARD_MOUSE_SLOTS 2
 #define MOUSE_SCALE_FACTOR (GAMEPAD_JOYSTICK_MID / 127)
 #define MOUSE_STICK_HOLD_MS 8   // No report → stick to center (legacy / left stick)
-// rlm2c-style: velocity = sum(deltas in window)/window_ms; spin_period = tick every N ms even without mouse.
-#define MOUSE_SAMPLE_WINDOW_MS 8
-#define MOUSE_SPIN_PERIOD_MS 2
-// UNPOWER-style: exponent = 1/game_power. 0.5 cancels game pow(x,2) → linear; 0.6 = slightly sharper center.
-#define MOUSE_RESPONSE_EXPONENT 0.5f
 // UNDEADZONE (JSM): any non-zero input remaps from [0,1] to [frac,1], jumping past game's inner deadzone.
 #define MOUSE_UNDEADZONE_FRAC 0.10f
 #define GAMEPAD_JOYSTICK_MIN_I32 static_cast<int32_t>(GAMEPAD_JOYSTICK_MIN)
@@ -114,14 +109,7 @@ void KeyboardHostListener::setup() {
     _mouse_accumulator_ly[i] = joystickMid;
     _mouse_accumulator_rx[i] = joystickMid;
     _mouse_accumulator_ry[i] = joystickMid;
-    _mouse_velocity_head[i] = 0;
-    for (int j = 0; j < MOUSE_VELOCITY_BUF_SIZE; j++) {
-      _mouse_velocity_buf[i][j].time_ms = 0;
-      _mouse_velocity_buf[i][j].dx = 0;
-      _mouse_velocity_buf[i][j].dy = 0;
-    }
   }
-  _mouse_stick_last_update_ms = 0;
 
   mouseX = 0;
   mouseY = 0;
@@ -131,42 +119,6 @@ void KeyboardHostListener::setup() {
 
 void KeyboardHostListener::process() {
   Gamepad *gamepad = Storage::getInstance().GetGamepad();
-
-  // Velocity-based right stick: compute BEFORE merge so gamepad gets fresh values every call.
-  if (_mouse_slot_count > 0 && mouseMovementMode == MOUSE_MOVEMENT_RIGHT_ANALOG) {
-    uint32_t now_ms = getMillis();
-    int32_t mid = static_cast<int32_t>(joystickMid);
-    for (uint8_t i = 0; i < _mouse_slot_count; i++) {
-      int32_t sum_dx = 0, sum_dy = 0;
-      for (int j = 0; j < MOUSE_VELOCITY_BUF_SIZE; j++) {
-        const MouseDeltaSample& s = _mouse_velocity_buf[i][j];
-        if (s.time_ms != 0 && (now_ms - s.time_ms) <= MOUSE_SAMPLE_WINDOW_MS) {
-          sum_dx += s.dx;
-          sum_dy += s.dy;
-        }
-      }
-      float scale = static_cast<float>(mouseSensitivity) / 500.0f;
-      float raw_x = static_cast<float>(sum_dx) * scale;
-      float raw_y = static_cast<float>(sum_dy) * scale;
-      if (raw_x > 1.0f) raw_x = 1.0f; else if (raw_x < -1.0f) raw_x = -1.0f;
-      if (raw_y > 1.0f) raw_y = 1.0f; else if (raw_y < -1.0f) raw_y = -1.0f;
-      float norm_x = raw_x, norm_y = raw_y;
-      if (raw_x != 0.0f) {
-        float sign = (raw_x > 0.0f) ? 1.0f : -1.0f;
-        norm_x = sign * (MOUSE_UNDEADZONE_FRAC + fabsf(raw_x) * (1.0f - MOUSE_UNDEADZONE_FRAC));
-      }
-      if (raw_y != 0.0f) {
-        float sign = (raw_y > 0.0f) ? 1.0f : -1.0f;
-        norm_y = sign * (MOUSE_UNDEADZONE_FRAC + fabsf(raw_y) * (1.0f - MOUSE_UNDEADZONE_FRAC));
-      }
-      if (norm_x > 1.0f) norm_x = 1.0f; else if (norm_x < -1.0f) norm_x = -1.0f;
-      if (norm_y > 1.0f) norm_y = 1.0f; else if (norm_y < -1.0f) norm_y = -1.0f;
-      int32_t off_x = static_cast<int32_t>(norm_x * static_cast<float>(mid));
-      int32_t off_y = static_cast<int32_t>(norm_y * static_cast<float>(mid));
-      _mouse_host_state[i].rx = static_cast<uint16_t>(std::clamp(mid + off_x, GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32));
-      _mouse_host_state[i].ry = static_cast<uint16_t>(std::clamp(mid + off_y, GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32));
-    }
-  }
 
   if (_keyboard_slot_count > 0 || _mouse_slot_count > 0) {
     GamepadState merged_kb;
@@ -234,11 +186,10 @@ void KeyboardHostListener::process() {
         for (uint8_t i = 0; i < _mouse_slot_count; i++) {
           _mouse_host_state[i].lx = joystickMid;
           _mouse_host_state[i].ly = joystickMid;
+          _mouse_host_state[i].rx = joystickMid;
+          _mouse_host_state[i].ry = joystickMid;
           _mouse_accumulator_lx[i] = joystickMid;
           _mouse_accumulator_ly[i] = joystickMid;
-          // Right stick: velocity window handles return-to-center; only reset accumulators.
-          _mouse_accumulator_rx[i] = joystickMid;
-          _mouse_accumulator_ry[i] = joystickMid;
         }
     }
   }
@@ -437,25 +388,6 @@ int32_t KeyboardHostListener::scaleMouseDeltaToJoystick(int8_t mouseVal) {
   return static_cast<int32_t>(mouseVal) * mouseSensitivityScale * MOUSE_SCALE_FACTOR;
 }
 
-// Right stick: delta this report → stick value this tick. No accumulation (JSM AIM-style).
-// UNPOWER: curved = sign*pow(|dx|, exponent) so we can cancel game's power curve (e.g. exponent 0.5 if game uses x²).
-// UNDEADZONE: when delta != 0, ensure |offset| >= center*MOUSE_UNDEADZONE_FRAC so game sees input past its deadzone.
-static int32_t mouseDeltaToStickOffset(int8_t delta, int32_t center, float sensScale) {
-  if (delta == 0) return 0;
-  float dx = static_cast<float>(delta) * sensScale / 127.0f;
-  if (dx > 1.0f) dx = 1.0f;
-  else if (dx < -1.0f) dx = -1.0f;
-  float sign = (dx >= 0.0f) ? 1.0f : -1.0f;
-  float curved = sign * powf(fabsf(dx), MOUSE_RESPONSE_EXPONENT);
-  int32_t off = static_cast<int32_t>(curved * static_cast<float>(center));
-  int32_t minOff = static_cast<int32_t>(MOUSE_UNDEADZONE_FRAC * static_cast<float>(center));
-  if (minOff > 0 && off != 0) {
-    if (off > 0 && off < minOff) off = minOff;
-    else if (off < 0 && -off < minOff) off = -minOff;
-  }
-  return std::clamp(off, -center, center);
-}
-
 void KeyboardHostListener::process_mouse_report(uint8_t slot, uint8_t const * report, uint16_t len)
 {
   // Debug: expose raw report for axis-order detection (GET /api/getMouseReportDebug)
@@ -522,14 +454,27 @@ void KeyboardHostListener::process_mouse_report(uint8_t slot, uint8_t const * re
     _mouse_host_state[slot].lx = static_cast<uint16_t>(_mouse_accumulator_lx[slot]);
     _mouse_host_state[slot].ly = static_cast<uint16_t>(_mouse_accumulator_ly[slot]);
   } else if (mouseMovementMode == MOUSE_MOVEMENT_RIGHT_ANALOG) {
-    // rlm2c-style: push delta into sliding window; process() will compute velocity every spin_period_ms.
-    if (slot < _mouse_slot_count) {
-      uint32_t t = getMillis();
-      uint8_t h = _mouse_velocity_head[slot];
-      _mouse_velocity_buf[slot][h].time_ms = t;
-      _mouse_velocity_buf[slot][h].dx = x;
-      _mouse_velocity_buf[slot][h].dy = y;
-      _mouse_velocity_head[slot] = (h + 1) % MOUSE_VELOCITY_BUF_SIZE;
+    // Direct delta→stick: no buffer, no accumulation. Every report sets the stick position immediately.
+    int32_t mid = static_cast<int32_t>(joystickMid);
+    float scale = static_cast<float>(mouseSensitivity) / 500.0f;
+    float raw_x = static_cast<float>(x) * scale;
+    float raw_y = static_cast<float>(y) * scale;
+    if (raw_x > 1.0f) raw_x = 1.0f; else if (raw_x < -1.0f) raw_x = -1.0f;
+    if (raw_y > 1.0f) raw_y = 1.0f; else if (raw_y < -1.0f) raw_y = -1.0f;
+    float norm_x = raw_x, norm_y = raw_y;
+    if (raw_x != 0.0f) {
+      float sign = (raw_x > 0.0f) ? 1.0f : -1.0f;
+      norm_x = sign * (MOUSE_UNDEADZONE_FRAC + fabsf(raw_x) * (1.0f - MOUSE_UNDEADZONE_FRAC));
     }
+    if (raw_y != 0.0f) {
+      float sign = (raw_y > 0.0f) ? 1.0f : -1.0f;
+      norm_y = sign * (MOUSE_UNDEADZONE_FRAC + fabsf(raw_y) * (1.0f - MOUSE_UNDEADZONE_FRAC));
+    }
+    if (norm_x > 1.0f) norm_x = 1.0f; else if (norm_x < -1.0f) norm_x = -1.0f;
+    if (norm_y > 1.0f) norm_y = 1.0f; else if (norm_y < -1.0f) norm_y = -1.0f;
+    int32_t off_x = static_cast<int32_t>(norm_x * static_cast<float>(mid));
+    int32_t off_y = static_cast<int32_t>(norm_y * static_cast<float>(mid));
+    _mouse_host_state[slot].rx = static_cast<uint16_t>(std::clamp(mid + off_x, GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32));
+    _mouse_host_state[slot].ry = static_cast<uint16_t>(std::clamp(mid + off_y, GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32));
   }
 }

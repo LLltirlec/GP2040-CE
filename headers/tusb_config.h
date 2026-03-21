@@ -94,9 +94,12 @@
 #define CFG_TUH_XINPUT      1
 
 // Max USB host events processed per tuh_task() call when using OPT_OS_PICO.
-// Lower = more responsive main loop (less lag) when 2 host ports are active; higher = more throughput.
 #ifndef CFG_TUH_MAX_EVENTS_PER_TASK
-#define CFG_TUH_MAX_EVENTS_PER_TASK 4
+#define CFG_TUH_MAX_EVENTS_PER_TASK 16
+#endif
+
+#ifndef CFG_TUH_TASK_QUEUE_SZ
+#define CFG_TUH_TASK_QUEUE_SZ 64
 #endif
 
 # define TUH_OPT_RHPORT 1
