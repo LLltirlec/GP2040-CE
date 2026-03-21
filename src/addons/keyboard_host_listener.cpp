@@ -12,7 +12,7 @@
 #define MOUSE_SCALE_FACTOR (GAMEPAD_JOYSTICK_MID / 127)
 #define MOUSE_STICK_HOLD_MS 8   // No report → stick to center (legacy / left stick)
 // rlm2c-style: velocity = sum(deltas in window)/window_ms; spin_period = tick every N ms even without mouse.
-#define MOUSE_SAMPLE_WINDOW_MS 4
+#define MOUSE_SAMPLE_WINDOW_MS 8
 #define MOUSE_SPIN_PERIOD_MS 2
 // UNPOWER-style: exponent = 1/game_power. 0.5 cancels game pow(x,2) → linear; 0.6 = slightly sharper center.
 #define MOUSE_RESPONSE_EXPONENT 0.5f
@@ -213,8 +213,10 @@ void KeyboardHostListener::process() {
         }
         float vel_x = window_f > 0.0f ? (static_cast<float>(sum_dx) / window_f) : 0.0f;
         float vel_y = window_f > 0.0f ? (static_cast<float>(sum_dy) / window_f) : 0.0f;
-        float norm_x = (vel_x / 127.0f) * mouseSensitivityScale;
-        float norm_y = (vel_y / 127.0f) * mouseSensitivityScale;
+        // sensitivity/100: sens=10 → 0.1; vel=5 → 50% stick. No /127 (velocity is already small).
+        float scale = static_cast<float>(mouseSensitivity) / 100.0f;
+        float norm_x = vel_x * scale;
+        float norm_y = vel_y * scale;
         if (norm_x > 1.0f) norm_x = 1.0f; else if (norm_x < -1.0f) norm_x = -1.0f;
         if (norm_y > 1.0f) norm_y = 1.0f; else if (norm_y < -1.0f) norm_y = -1.0f;
         int32_t off_x = static_cast<int32_t>(norm_x * static_cast<float>(mid));
