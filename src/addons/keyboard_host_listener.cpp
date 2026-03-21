@@ -16,8 +16,8 @@
 #define MOUSE_SPIN_PERIOD_MS 2
 // UNPOWER-style: exponent = 1/game_power. 0.5 cancels game pow(x,2) → linear; 0.6 = slightly sharper center.
 #define MOUSE_RESPONSE_EXPONENT 0.5f
-// UNDEADZONE (JSM): when delta != 0, output at least this fraction of center so we jump past game's inner deadzone.
-#define MOUSE_UNDEADZONE_FRAC 0.25f
+// UNDEADZONE (JSM): any non-zero input remaps from [0,1] to [frac,1], jumping past game's inner deadzone.
+#define MOUSE_UNDEADZONE_FRAC 0.10f
 #define GAMEPAD_JOYSTICK_MIN_I32 static_cast<int32_t>(GAMEPAD_JOYSTICK_MIN)
 #define GAMEPAD_JOYSTICK_MAX_I32 static_cast<int32_t>(GAMEPAD_JOYSTICK_MAX)
 
@@ -201,7 +201,6 @@ void KeyboardHostListener::process() {
         (now_ms - _mouse_stick_last_update_ms) >= MOUSE_SPIN_PERIOD_MS) {
       _mouse_stick_last_update_ms = now_ms;
       int32_t mid = static_cast<int32_t>(joystickMid);
-      float window_f = static_cast<float>(MOUSE_SAMPLE_WINDOW_MS);
       for (uint8_t i = 0; i < _mouse_slot_count; i++) {
         int32_t sum_dx = 0, sum_dy = 0;
         for (int j = 0; j < MOUSE_VELOCITY_BUF_SIZE; j++) {
@@ -211,12 +210,21 @@ void KeyboardHostListener::process() {
             sum_dy += s.dy;
           }
         }
-        float vel_x = window_f > 0.0f ? (static_cast<float>(sum_dx) / window_f) : 0.0f;
-        float vel_y = window_f > 0.0f ? (static_cast<float>(sum_dy) / window_f) : 0.0f;
-        // sensitivity/100: sens=10 → 0.1; vel=5 → 50% stick. No /127 (velocity is already small).
-        float scale = static_cast<float>(mouseSensitivity) / 100.0f;
-        float norm_x = vel_x * scale;
-        float norm_y = vel_y * scale;
+        float scale = static_cast<float>(mouseSensitivity) / 500.0f;
+        float raw_x = static_cast<float>(sum_dx) * scale;
+        float raw_y = static_cast<float>(sum_dy) * scale;
+        if (raw_x > 1.0f) raw_x = 1.0f; else if (raw_x < -1.0f) raw_x = -1.0f;
+        if (raw_y > 1.0f) raw_y = 1.0f; else if (raw_y < -1.0f) raw_y = -1.0f;
+        // UNDEADZONE: remap [0,1] → [frac,1] so any movement jumps past game's inner deadzone.
+        float norm_x = raw_x, norm_y = raw_y;
+        if (raw_x != 0.0f) {
+          float sign = (raw_x > 0.0f) ? 1.0f : -1.0f;
+          norm_x = sign * (MOUSE_UNDEADZONE_FRAC + fabsf(raw_x) * (1.0f - MOUSE_UNDEADZONE_FRAC));
+        }
+        if (raw_y != 0.0f) {
+          float sign = (raw_y > 0.0f) ? 1.0f : -1.0f;
+          norm_y = sign * (MOUSE_UNDEADZONE_FRAC + fabsf(raw_y) * (1.0f - MOUSE_UNDEADZONE_FRAC));
+        }
         if (norm_x > 1.0f) norm_x = 1.0f; else if (norm_x < -1.0f) norm_x = -1.0f;
         if (norm_y > 1.0f) norm_y = 1.0f; else if (norm_y < -1.0f) norm_y = -1.0f;
         int32_t off_x = static_cast<int32_t>(norm_x * static_cast<float>(mid));
