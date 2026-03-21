@@ -60,16 +60,11 @@ void USBHostManager::pushListener(USBListener * usbListener) { // If anything ne
 // Host manager should call tuh_task as fast as possible
 void USBHostManager::process() {
     if ( tuh_ready ){
-        bool bothPorts = PeripheralManager::getInstance().isUSBEnabled(0) && PeripheralManager::getInstance().isUSBEnabled(1);
-        if (bothPorts) {
-            // With two ports, process USB host several times per loop to drain the queue
-            // without blocking too long (tuh_task processes at most CFG_TUH_MAX_EVENTS_PER_TASK per call)
-            for (int i = 0; i < 3; i++) {
-                tuh_task();
-                if (!tuh_task_event_ready()) break;
-            }
-        } else {
+        // Drain the event queue fully: tuh_task processes at most CFG_TUH_MAX_EVENTS_PER_TASK (4) per call.
+        // Without draining, high-rate HID devices (mouse 125-1000Hz) queue up and cause input lag.
+        for (int i = 0; i < 8; i++) {
             tuh_task();
+            if (!tuh_task_event_ready()) break;
         }
     }
 }
