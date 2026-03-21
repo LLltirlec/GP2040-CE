@@ -13,6 +13,8 @@
 #define MOUSE_STICK_HOLD_MS 8   // No report → stick to center (legacy / left stick)
 // UNDEADZONE (JSM): any non-zero input remaps from [0,1] to [frac,1], jumping past game's inner deadzone.
 #define MOUSE_UNDEADZONE_FRAC 0.10f
+// EMA smoothing: 0.0 = no change, 1.0 = no smoothing (raw). 0.5 = half-life of 1 sample.
+#define MOUSE_SMOOTHING_ALPHA 0.3f
 #define GAMEPAD_JOYSTICK_MIN_I32 static_cast<int32_t>(GAMEPAD_JOYSTICK_MIN)
 #define GAMEPAD_JOYSTICK_MAX_I32 static_cast<int32_t>(GAMEPAD_JOYSTICK_MAX)
 
@@ -109,6 +111,8 @@ void KeyboardHostListener::setup() {
     _mouse_accumulator_ly[i] = joystickMid;
     _mouse_accumulator_rx[i] = joystickMid;
     _mouse_accumulator_ry[i] = joystickMid;
+    _mouse_smooth_x[i] = 0.0f;
+    _mouse_smooth_y[i] = 0.0f;
   }
 
   mouseX = 0;
@@ -190,6 +194,8 @@ void KeyboardHostListener::process() {
           _mouse_host_state[i].ry = joystickMid;
           _mouse_accumulator_lx[i] = joystickMid;
           _mouse_accumulator_ly[i] = joystickMid;
+          _mouse_smooth_x[i] = 0.0f;
+          _mouse_smooth_y[i] = 0.0f;
         }
     }
   }
@@ -454,7 +460,6 @@ void KeyboardHostListener::process_mouse_report(uint8_t slot, uint8_t const * re
     _mouse_host_state[slot].lx = static_cast<uint16_t>(_mouse_accumulator_lx[slot]);
     _mouse_host_state[slot].ly = static_cast<uint16_t>(_mouse_accumulator_ly[slot]);
   } else if (mouseMovementMode == MOUSE_MOVEMENT_RIGHT_ANALOG) {
-    // Direct delta→stick: no buffer, no accumulation. Every report sets the stick position immediately.
     int32_t mid = static_cast<int32_t>(joystickMid);
     float scale = static_cast<float>(mouseSensitivity) / 500.0f;
     float raw_x = static_cast<float>(x) * scale;
@@ -472,8 +477,10 @@ void KeyboardHostListener::process_mouse_report(uint8_t slot, uint8_t const * re
     }
     if (norm_x > 1.0f) norm_x = 1.0f; else if (norm_x < -1.0f) norm_x = -1.0f;
     if (norm_y > 1.0f) norm_y = 1.0f; else if (norm_y < -1.0f) norm_y = -1.0f;
-    int32_t off_x = static_cast<int32_t>(norm_x * static_cast<float>(mid));
-    int32_t off_y = static_cast<int32_t>(norm_y * static_cast<float>(mid));
+    _mouse_smooth_x[slot] = MOUSE_SMOOTHING_ALPHA * norm_x + (1.0f - MOUSE_SMOOTHING_ALPHA) * _mouse_smooth_x[slot];
+    _mouse_smooth_y[slot] = MOUSE_SMOOTHING_ALPHA * norm_y + (1.0f - MOUSE_SMOOTHING_ALPHA) * _mouse_smooth_y[slot];
+    int32_t off_x = static_cast<int32_t>(_mouse_smooth_x[slot] * static_cast<float>(mid));
+    int32_t off_y = static_cast<int32_t>(_mouse_smooth_y[slot] * static_cast<float>(mid));
     _mouse_host_state[slot].rx = static_cast<uint16_t>(std::clamp(mid + off_x, GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32));
     _mouse_host_state[slot].ry = static_cast<uint16_t>(std::clamp(mid + off_y, GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32));
   }
