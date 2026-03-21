@@ -14,7 +14,7 @@
 // UNDEADZONE (JSM): any non-zero input remaps from [0,1] to [frac,1], jumping past game's inner deadzone.
 #define MOUSE_UNDEADZONE_FRAC 0.10f
 // EMA smoothing: 0.0 = no change, 1.0 = no smoothing (raw). 0.5 = half-life of 1 sample.
-#define MOUSE_SMOOTHING_ALPHA 0.3f
+#define MOUSE_SMOOTHING_ALPHA 0.5f
 #define GAMEPAD_JOYSTICK_MIN_I32 static_cast<int32_t>(GAMEPAD_JOYSTICK_MIN)
 #define GAMEPAD_JOYSTICK_MAX_I32 static_cast<int32_t>(GAMEPAD_JOYSTICK_MAX)
 
@@ -461,7 +461,7 @@ void KeyboardHostListener::process_mouse_report(uint8_t slot, uint8_t const * re
     _mouse_host_state[slot].ly = static_cast<uint16_t>(_mouse_accumulator_ly[slot]);
   } else if (mouseMovementMode == MOUSE_MOVEMENT_RIGHT_ANALOG) {
     int32_t mid = static_cast<int32_t>(joystickMid);
-    float scale = static_cast<float>(mouseSensitivity) / 500.0f;
+    float scale = static_cast<float>(mouseSensitivity) / 200.0f;
     float raw_x = static_cast<float>(x) * scale;
     float raw_y = static_cast<float>(y) * scale;
     if (raw_x > 1.0f) raw_x = 1.0f; else if (raw_x < -1.0f) raw_x = -1.0f;
