@@ -931,7 +931,9 @@ const uint8_t * PS4Driver::get_descriptor_device_cb() {
 }
 
 const uint8_t * PS4Driver::get_hid_descriptor_report_cb(uint8_t itf) {
-    return ps4_report_descriptor;
+    (void)itf;
+    const GamepadOptions &opts = Storage::getInstance().getGamepadOptions();
+    return opts.ps4HidAndroidAxisCompat ? ps4_report_descriptor_android : ps4_report_descriptor;
 }
 
 const uint8_t * PS4Driver::get_descriptor_configuration_cb(uint8_t index) {

@@ -552,8 +552,12 @@ bool XBOneDriver::send_xbone_usb(uint8_t const *report, uint16_t report_size) {
     if ( tud_ready() &&											// Is the device ready?
         (p_xbone->ep_in != 0) && (!usbd_edpt_busy(TUD_OPT_RHPORT, p_xbone->ep_in))) // Is the IN endpoint available?
     {
+        if (report_size > sizeof(p_xbone->epin_buf)) {
+            return false;
+        }
+        memcpy(p_xbone->epin_buf, report, report_size);
         usbd_edpt_claim(0, p_xbone->ep_in);										// Take control of IN endpoint
-        usbd_edpt_xfer(0, p_xbone->ep_in, (uint8_t *)report, report_size); 	// Send report buffer
+        usbd_edpt_xfer(0, p_xbone->ep_in, p_xbone->epin_buf, report_size); 	// Send from stable buffer (same as HID class)
         usbd_edpt_release(0, p_xbone->ep_in);										// Release control of IN endpoint
 
         // we successfully sent the report

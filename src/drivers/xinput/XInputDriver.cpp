@@ -23,6 +23,11 @@
 
 #define XINPUT_OUT_SIZE 32
 
+// IN reports must be copied out of xinputReport before usbd_edpt_xfer(): the controller DMA
+// reads the buffer asynchronously; updating xinputReport while a transfer is in flight corrupts
+// the packet (often visible as stick bytes leaking into buttons2 / RB when using mouse-as-stick).
+static CFG_TUSB_MEM_ALIGN uint8_t xinput_in_xfer_buf[sizeof(XInputReport)];
+
 #define XINPUT_DESC_TYPE_RESERVED 0x21
 #define XINPUT_SECURITY_DESC_TYPE_RESERVED 0x41
 
@@ -337,8 +342,9 @@ bool XInputDriver::process(Gamepad * gamepad) {
         if ( tud_ready() &&											// Is the device ready?
             (endpoint_in != 0) && (!usbd_edpt_busy(0, endpoint_in)) ) // Is the IN endpoint available?
         {
+            memcpy(xinput_in_xfer_buf, &xinputReport, sizeof(XInputReport));
             usbd_edpt_claim(0, endpoint_in);								// Take control of IN endpoint
-            usbd_edpt_xfer(0, endpoint_in, (uint8_t *)&xinputReport, sizeof(XInputReport)); // Send report buffer
+            usbd_edpt_xfer(0, endpoint_in, xinput_in_xfer_buf, sizeof(XInputReport)); // Send stable snapshot
             usbd_edpt_release(0, endpoint_in);								// Release control of IN endpoint
             memcpy(last_report, &xinputReport, sizeof(XInputReport)); // save if we sent it
             reportSent = true;

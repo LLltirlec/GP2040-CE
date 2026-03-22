@@ -62,6 +62,8 @@ export default {
 	'mini-menu-gamepad-input': 'Use Gamepad Input for Display Mini Menu',
 	'ps4-mode-explanation-text':
 		'PS4 mode allows GP2040-CE to run as an authenticated PS4 controller.',
+	'ps4-android-hid-axis-compat-label':
+		'Android: use XInput-like HID axis labels (fixes swapped shoulders/triggers on some phones; leave off for PS4 console)',
 	'ps4-mode-warning-text':
 		'<span>⏳ WARNING ⏳:</span> PS4 will timeout after 8 minutes without authentication.',
 	'ps4-usb-host-mode-text':

@@ -38,6 +38,9 @@ message GamepadOptions
     optional uint32 usbVendorID = 31;
     optional uint32 miniMenuGamepadInput = 32;
     optional InputModeDeviceType inputDeviceType = 33;
+    // When true, PS4 HID report descriptor labels axes like common XInput-style mapping
+    // (right stick = Rx/Ry, L2/R2 = Z/Rz) for Android generic HID; wire format is unchanged.
+    optional bool ps4HidAndroidAxisCompat = 34;
 }
 
 message KeyboardMapping
