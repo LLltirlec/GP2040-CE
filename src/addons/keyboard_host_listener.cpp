@@ -12,9 +12,9 @@
 #define MOUSE_SCALE_FACTOR (GAMEPAD_JOYSTICK_MID / 127)
 #define MOUSE_STICK_HOLD_MS 20  // Hold stick value between reports; must exceed mouse report interval (8ms @125Hz)
 // UNDEADZONE (JSM): any non-zero input remaps from [0,1] to [frac,1], jumping past game's inner deadzone.
-#define MOUSE_UNDEADZONE_FRAC 0.15f
-// EMA smoothing: lower = smoother but slightly slower response. 0.4 ≈ half-life ~1.3 samples.
-#define MOUSE_SMOOTHING_ALPHA 0.4f
+#define MOUSE_UNDEADZONE_FRAC 0.08f
+// Per-ms interpolation rate toward target. ~0.25 per ms ≈ converges in ~8ms (one mouse report interval).
+#define MOUSE_LERP_RATE 0.25f
 #define GAMEPAD_JOYSTICK_MIN_I32 static_cast<int32_t>(GAMEPAD_JOYSTICK_MIN)
 #define GAMEPAD_JOYSTICK_MAX_I32 static_cast<int32_t>(GAMEPAD_JOYSTICK_MAX)
 
@@ -113,6 +113,8 @@ void KeyboardHostListener::setup() {
     _mouse_accumulator_ry[i] = joystickMid;
     _mouse_smooth_x[i] = 0.0f;
     _mouse_smooth_y[i] = 0.0f;
+    _mouse_target_x[i] = 0.0f;
+    _mouse_target_y[i] = 0.0f;
     _mouse_delta_acc_x[i] = 0;
     _mouse_delta_acc_y[i] = 0;
     _mouse_has_new_delta[i] = false;
@@ -127,8 +129,8 @@ void KeyboardHostListener::setup() {
 void KeyboardHostListener::process() {
   Gamepad *gamepad = Storage::getInstance().GetGamepad();
 
-  // Right stick: compute from accumulated deltas since last process() call.
-  // This sums all mouse reports that arrived between frames → stable direction & magnitude.
+  // Right stick: smooth interpolation toward target every process() call (~1ms).
+  // New mouse reports update the target; between reports, smooth glides toward it.
   if (_mouse_slot_count > 0 && mouseMovementMode == MOUSE_MOVEMENT_RIGHT_ANALOG) {
     int32_t mid = static_cast<int32_t>(joystickMid);
     float scale = static_cast<float>(mouseSensitivity) / 300.0f;
@@ -149,16 +151,18 @@ void KeyboardHostListener::process() {
         }
         if (norm_x > 1.0f) norm_x = 1.0f; else if (norm_x < -1.0f) norm_x = -1.0f;
         if (norm_y > 1.0f) norm_y = 1.0f; else if (norm_y < -1.0f) norm_y = -1.0f;
-        _mouse_smooth_x[i] = MOUSE_SMOOTHING_ALPHA * norm_x + (1.0f - MOUSE_SMOOTHING_ALPHA) * _mouse_smooth_x[i];
-        _mouse_smooth_y[i] = MOUSE_SMOOTHING_ALPHA * norm_y + (1.0f - MOUSE_SMOOTHING_ALPHA) * _mouse_smooth_y[i];
-        int32_t off_x = static_cast<int32_t>(_mouse_smooth_x[i] * static_cast<float>(mid));
-        int32_t off_y = static_cast<int32_t>(_mouse_smooth_y[i] * static_cast<float>(mid));
-        _mouse_host_state[i].rx = static_cast<uint16_t>(std::clamp(mid + off_x, GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32));
-        _mouse_host_state[i].ry = static_cast<uint16_t>(std::clamp(mid + off_y, GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32));
+        _mouse_target_x[i] = norm_x;
+        _mouse_target_y[i] = norm_y;
         _mouse_delta_acc_x[i] = 0;
         _mouse_delta_acc_y[i] = 0;
         _mouse_has_new_delta[i] = false;
       }
+      _mouse_smooth_x[i] += (_mouse_target_x[i] - _mouse_smooth_x[i]) * MOUSE_LERP_RATE;
+      _mouse_smooth_y[i] += (_mouse_target_y[i] - _mouse_smooth_y[i]) * MOUSE_LERP_RATE;
+      int32_t off_x = static_cast<int32_t>(_mouse_smooth_x[i] * static_cast<float>(mid));
+      int32_t off_y = static_cast<int32_t>(_mouse_smooth_y[i] * static_cast<float>(mid));
+      _mouse_host_state[i].rx = static_cast<uint16_t>(std::clamp(mid + off_x, GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32));
+      _mouse_host_state[i].ry = static_cast<uint16_t>(std::clamp(mid + off_y, GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32));
     }
   }
 
@@ -234,6 +238,8 @@ void KeyboardHostListener::process() {
           _mouse_accumulator_ly[i] = joystickMid;
           _mouse_smooth_x[i] = 0.0f;
           _mouse_smooth_y[i] = 0.0f;
+          _mouse_target_x[i] = 0.0f;
+          _mouse_target_y[i] = 0.0f;
           _mouse_delta_acc_x[i] = 0;
           _mouse_delta_acc_y[i] = 0;
           _mouse_has_new_delta[i] = false;
