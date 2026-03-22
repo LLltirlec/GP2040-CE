@@ -206,10 +206,21 @@ void KeyboardHostListener::process() {
     }
     gamepad->state.dpad     |= merged_kb.dpad;
     gamepad->state.buttons  |= merged_kb.buttons;
-    gamepad->state.lx       = merged_kb.lx;
-    gamepad->state.ly       = merged_kb.ly;
-    gamepad->state.rx       = merged_kb.rx;
-    gamepad->state.ry       = merged_kb.ry;
+    // Do not assign joystickMid when host has no axis input: merged_kb defaults to mid every
+    // frame, and overwriting would erase physical analog sticks and fight keyboard/mouse
+    // smoothing (worse timing through hubs when host reports stutter).
+    if (merged_kb.lx != joystickMid) {
+      gamepad->state.lx = merged_kb.lx;
+    }
+    if (merged_kb.ly != joystickMid) {
+      gamepad->state.ly = merged_kb.ly;
+    }
+    if (merged_kb.rx != joystickMid) {
+      gamepad->state.rx = merged_kb.rx;
+    }
+    if (merged_kb.ry != joystickMid) {
+      gamepad->state.ry = merged_kb.ry;
+    }
     if (!gamepad->hasAnalogTriggers) {
         gamepad->state.lt       |= merged_kb.lt;
         gamepad->state.rt       |= merged_kb.rt;
@@ -243,6 +254,16 @@ void KeyboardHostListener::process() {
           _mouse_delta_acc_x[i] = 0;
           _mouse_delta_acc_y[i] = 0;
           _mouse_has_new_delta[i] = false;
+        }
+        // Conditional merge above skips overwriting sticks when merged is mid; after a mouse idle
+        // reset the smoother is cleared but gamepad may still hold the last sample — snap axes the
+        // mouse mode drives so the stick returns to center until new input.
+        if (mouseMovementMode == MOUSE_MOVEMENT_RIGHT_ANALOG) {
+          gamepad->state.rx = joystickMid;
+          gamepad->state.ry = joystickMid;
+        } else if (mouseMovementMode == MOUSE_MOVEMENT_LEFT_ANALOG) {
+          gamepad->state.lx = joystickMid;
+          gamepad->state.ly = joystickMid;
         }
     }
   }
