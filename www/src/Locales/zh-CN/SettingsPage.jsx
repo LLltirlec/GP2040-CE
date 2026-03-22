@@ -60,8 +60,6 @@ export default {
 	'debounce-delay-label': '去抖延迟（毫秒）',
 	'mini-menu-gamepad-input': '使用游戏手柄输入控制显示屏迷你菜单',
 	'ps4-mode-explanation-text': 'PS4 模式允许 GP2040-CE 作为经过认证的 PS4 控制器运行。',
-	'ps4-android-hid-axis-compat-label':
-		'Android：使用类 XInput 的 HID 轴标签（可修复部分手机上肩键/扳机错位；接 PS4 主机时请关闭）',
 	'ps4-mode-warning-text': '<span>⏳ 警告 ⏳:</span> PS4 在没有认证的情况下会在 8 分钟后超时。',
 	'ps4-usb-host-mode-text': '<span>信息:</span> 请确保已启用 USB 外设并插入兼容 PS4 的 USB 设备。',
 	'ps4-id-mode-label': '识别模式',

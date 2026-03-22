@@ -448,10 +448,6 @@ const schema = yup.object().shape({
 		.number()
 		.required()
 		.label('Switch Touchpad and Share'),
-	ps4HidAndroidAxisCompat: yup
-		.number()
-		.required()
-		.label('PS4 Android HID axis mapping'),
 	ps4ControllerIDMode: yup
 		.number()
 		.required()
@@ -552,8 +548,6 @@ const FormContext = ({ setButtonLabels, setKeyMappings }) => {
 		if (!!values.socdMode) values.socdMode = parseInt(values.socdMode);
 		if (!!values.switchTpShareForDs4)
 			values.switchTpShareForDs4 = parseInt(values.switchTpShareForDs4);
-		if (!!values.ps4HidAndroidAxisCompat)
-			values.ps4HidAndroidAxisCompat = parseInt(values.ps4HidAndroidAxisCompat);
 		if (!!values.forcedSetupMode)
 			values.forcedSetupMode = parseInt(values.forcedSetupMode);
 		if (!!values.lockHotkeys) values.lockHotkeys = parseInt(values.lockHotkeys);
@@ -891,20 +885,6 @@ export default function SettingsPage() {
 							checked={Boolean(values.switchTpShareForDs4)}
 							onChange={(e) => {
 								setFieldValue('switchTpShareForDs4', e.target.checked ? 1 : 0);
-							}}
-						/>
-					</Col>
-				</Row>
-				<Row className="mb-3">
-					<Col sm={10}>
-						<Form.Check
-							label={t('SettingsPage:ps4-android-hid-axis-compat-label')}
-							type="switch"
-							name="ps4HidAndroidAxisCompat"
-							isInvalid={false}
-							checked={Boolean(values.ps4HidAndroidAxisCompat)}
-							onChange={(e) => {
-								setFieldValue('ps4HidAndroidAxisCompat', e.target.checked ? 1 : 0);
 							}}
 						/>
 					</Col>

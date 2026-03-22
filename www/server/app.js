@@ -111,7 +111,6 @@ app.get('/api/getGamepadOptions', (req, res) => {
 		inputDeviceType: 0,
 		socdMode: 2,
 		switchTpShareForDs4: 0,
-		ps4HidAndroidAxisCompat: 0,
 		forcedSetupMode: 0,
 		lockHotkeys: 0,
 		fourWayMode: 0,

@@ -667,7 +667,6 @@ std::string setGamepadOptions()
     readDoc(gamepadOptions.inputDeviceType, doc, "inputDeviceType");
     readDoc(gamepadOptions.socdMode, doc, "socdMode");
     readDoc(gamepadOptions.switchTpShareForDs4, doc, "switchTpShareForDs4");
-    readDoc(gamepadOptions.ps4HidAndroidAxisCompat, doc, "ps4HidAndroidAxisCompat");
     readDoc(gamepadOptions.lockHotkeys, doc, "lockHotkeys");
     readDoc(gamepadOptions.fourWayMode, doc, "fourWayMode");
     readDoc(gamepadOptions.profileNumber, doc, "profileNumber");
@@ -738,7 +737,6 @@ std::string getGamepadOptions()
     writeDoc(doc, "inputDeviceType", gamepadOptions.inputDeviceType);
     writeDoc(doc, "socdMode", gamepadOptions.socdMode);
     writeDoc(doc, "switchTpShareForDs4", gamepadOptions.switchTpShareForDs4 ? 1 : 0);
-    writeDoc(doc, "ps4HidAndroidAxisCompat", gamepadOptions.ps4HidAndroidAxisCompat ? 1 : 0);
     writeDoc(doc, "lockHotkeys", gamepadOptions.lockHotkeys ? 1 : 0);
     writeDoc(doc, "fourWayMode", gamepadOptions.fourWayMode ? 1 : 0);
     writeDoc(doc, "profileNumber", gamepadOptions.profileNumber);
