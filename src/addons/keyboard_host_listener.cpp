@@ -12,9 +12,11 @@
 #define MOUSE_SCALE_FACTOR (GAMEPAD_JOYSTICK_MID / 127)
 #define MOUSE_STICK_HOLD_MS 20  // Hold stick value between reports; must exceed mouse report interval (8ms @125Hz)
 // UNDEADZONE (JSM): any non-zero input remaps from [0,1] to [frac,1], jumping past game's inner deadzone.
-#define MOUSE_UNDEADZONE_FRAC 0.08f
-// Per-ms interpolation rate toward target. ~0.25 per ms ≈ converges in ~8ms (one mouse report interval).
-#define MOUSE_LERP_RATE 0.25f
+#define MOUSE_UNDEADZONE_FRAC 0.05f
+// EMA alpha for target: smooths report-to-report delta variation BEFORE it hits the output.
+#define MOUSE_TARGET_ALPHA 0.4f
+// Per-ms interpolation rate: smooths transitions between targets. Lower = smoother but laggier.
+#define MOUSE_LERP_RATE 0.08f
 #define GAMEPAD_JOYSTICK_MIN_I32 static_cast<int32_t>(GAMEPAD_JOYSTICK_MIN)
 #define GAMEPAD_JOYSTICK_MAX_I32 static_cast<int32_t>(GAMEPAD_JOYSTICK_MAX)
 
@@ -152,8 +154,8 @@ void KeyboardHostListener::process() {
         }
         if (norm_x > 1.0f) norm_x = 1.0f; else if (norm_x < -1.0f) norm_x = -1.0f;
         if (norm_y > 1.0f) norm_y = 1.0f; else if (norm_y < -1.0f) norm_y = -1.0f;
-        _mouse_target_x[i] = norm_x;
-        _mouse_target_y[i] = norm_y;
+        _mouse_target_x[i] = MOUSE_TARGET_ALPHA * norm_x + (1.0f - MOUSE_TARGET_ALPHA) * _mouse_target_x[i];
+        _mouse_target_y[i] = MOUSE_TARGET_ALPHA * norm_y + (1.0f - MOUSE_TARGET_ALPHA) * _mouse_target_y[i];
         _mouse_delta_acc_x[i] = 0;
         _mouse_delta_acc_y[i] = 0;
         _mouse_has_new_delta[i] = false;
