@@ -10,11 +10,11 @@
 #define DEV_ADDR_NONE 0xFF
 #define MAX_KEYBOARD_MOUSE_SLOTS 2
 #define MOUSE_SCALE_FACTOR (GAMEPAD_JOYSTICK_MID / 127)
-#define MOUSE_STICK_HOLD_MS 8   // No report → stick to center (legacy / left stick)
+#define MOUSE_STICK_HOLD_MS 20  // Hold stick value between reports; must exceed mouse report interval (8ms @125Hz)
 // UNDEADZONE (JSM): any non-zero input remaps from [0,1] to [frac,1], jumping past game's inner deadzone.
-#define MOUSE_UNDEADZONE_FRAC 0.10f
-// EMA smoothing: 0.0 = no change, 1.0 = no smoothing (raw). 0.5 = half-life of 1 sample.
-#define MOUSE_SMOOTHING_ALPHA 0.2f
+#define MOUSE_UNDEADZONE_FRAC 0.15f
+// EMA smoothing: lower = smoother but slightly slower response. 0.4 ≈ half-life ~1.3 samples.
+#define MOUSE_SMOOTHING_ALPHA 0.4f
 #define GAMEPAD_JOYSTICK_MIN_I32 static_cast<int32_t>(GAMEPAD_JOYSTICK_MIN)
 #define GAMEPAD_JOYSTICK_MAX_I32 static_cast<int32_t>(GAMEPAD_JOYSTICK_MAX)
 
@@ -113,6 +113,9 @@ void KeyboardHostListener::setup() {
     _mouse_accumulator_ry[i] = joystickMid;
     _mouse_smooth_x[i] = 0.0f;
     _mouse_smooth_y[i] = 0.0f;
+    _mouse_delta_acc_x[i] = 0;
+    _mouse_delta_acc_y[i] = 0;
+    _mouse_has_new_delta[i] = false;
   }
 
   mouseX = 0;
@@ -123,6 +126,41 @@ void KeyboardHostListener::setup() {
 
 void KeyboardHostListener::process() {
   Gamepad *gamepad = Storage::getInstance().GetGamepad();
+
+  // Right stick: compute from accumulated deltas since last process() call.
+  // This sums all mouse reports that arrived between frames → stable direction & magnitude.
+  if (_mouse_slot_count > 0 && mouseMovementMode == MOUSE_MOVEMENT_RIGHT_ANALOG) {
+    int32_t mid = static_cast<int32_t>(joystickMid);
+    float scale = static_cast<float>(mouseSensitivity) / 300.0f;
+    for (uint8_t i = 0; i < _mouse_slot_count; i++) {
+      if (_mouse_has_new_delta[i]) {
+        float raw_x = static_cast<float>(_mouse_delta_acc_x[i]) * scale;
+        float raw_y = static_cast<float>(_mouse_delta_acc_y[i]) * scale;
+        if (raw_x > 1.0f) raw_x = 1.0f; else if (raw_x < -1.0f) raw_x = -1.0f;
+        if (raw_y > 1.0f) raw_y = 1.0f; else if (raw_y < -1.0f) raw_y = -1.0f;
+        float norm_x = raw_x, norm_y = raw_y;
+        if (raw_x != 0.0f) {
+          float sign = (raw_x > 0.0f) ? 1.0f : -1.0f;
+          norm_x = sign * (MOUSE_UNDEADZONE_FRAC + fabsf(raw_x) * (1.0f - MOUSE_UNDEADZONE_FRAC));
+        }
+        if (raw_y != 0.0f) {
+          float sign = (raw_y > 0.0f) ? 1.0f : -1.0f;
+          norm_y = sign * (MOUSE_UNDEADZONE_FRAC + fabsf(raw_y) * (1.0f - MOUSE_UNDEADZONE_FRAC));
+        }
+        if (norm_x > 1.0f) norm_x = 1.0f; else if (norm_x < -1.0f) norm_x = -1.0f;
+        if (norm_y > 1.0f) norm_y = 1.0f; else if (norm_y < -1.0f) norm_y = -1.0f;
+        _mouse_smooth_x[i] = MOUSE_SMOOTHING_ALPHA * norm_x + (1.0f - MOUSE_SMOOTHING_ALPHA) * _mouse_smooth_x[i];
+        _mouse_smooth_y[i] = MOUSE_SMOOTHING_ALPHA * norm_y + (1.0f - MOUSE_SMOOTHING_ALPHA) * _mouse_smooth_y[i];
+        int32_t off_x = static_cast<int32_t>(_mouse_smooth_x[i] * static_cast<float>(mid));
+        int32_t off_y = static_cast<int32_t>(_mouse_smooth_y[i] * static_cast<float>(mid));
+        _mouse_host_state[i].rx = static_cast<uint16_t>(std::clamp(mid + off_x, GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32));
+        _mouse_host_state[i].ry = static_cast<uint16_t>(std::clamp(mid + off_y, GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32));
+        _mouse_delta_acc_x[i] = 0;
+        _mouse_delta_acc_y[i] = 0;
+        _mouse_has_new_delta[i] = false;
+      }
+    }
+  }
 
   if (_keyboard_slot_count > 0 || _mouse_slot_count > 0) {
     GamepadState merged_kb;
@@ -196,6 +234,9 @@ void KeyboardHostListener::process() {
           _mouse_accumulator_ly[i] = joystickMid;
           _mouse_smooth_x[i] = 0.0f;
           _mouse_smooth_y[i] = 0.0f;
+          _mouse_delta_acc_x[i] = 0;
+          _mouse_delta_acc_y[i] = 0;
+          _mouse_has_new_delta[i] = false;
         }
     }
   }
@@ -460,28 +501,8 @@ void KeyboardHostListener::process_mouse_report(uint8_t slot, uint8_t const * re
     _mouse_host_state[slot].lx = static_cast<uint16_t>(_mouse_accumulator_lx[slot]);
     _mouse_host_state[slot].ly = static_cast<uint16_t>(_mouse_accumulator_ly[slot]);
   } else if (mouseMovementMode == MOUSE_MOVEMENT_RIGHT_ANALOG) {
-    int32_t mid = static_cast<int32_t>(joystickMid);
-    float scale = static_cast<float>(mouseSensitivity) / 200.0f;
-    float raw_x = static_cast<float>(x) * scale;
-    float raw_y = static_cast<float>(y) * scale;
-    if (raw_x > 1.0f) raw_x = 1.0f; else if (raw_x < -1.0f) raw_x = -1.0f;
-    if (raw_y > 1.0f) raw_y = 1.0f; else if (raw_y < -1.0f) raw_y = -1.0f;
-    float norm_x = raw_x, norm_y = raw_y;
-    if (raw_x != 0.0f) {
-      float sign = (raw_x > 0.0f) ? 1.0f : -1.0f;
-      norm_x = sign * (MOUSE_UNDEADZONE_FRAC + fabsf(raw_x) * (1.0f - MOUSE_UNDEADZONE_FRAC));
-    }
-    if (raw_y != 0.0f) {
-      float sign = (raw_y > 0.0f) ? 1.0f : -1.0f;
-      norm_y = sign * (MOUSE_UNDEADZONE_FRAC + fabsf(raw_y) * (1.0f - MOUSE_UNDEADZONE_FRAC));
-    }
-    if (norm_x > 1.0f) norm_x = 1.0f; else if (norm_x < -1.0f) norm_x = -1.0f;
-    if (norm_y > 1.0f) norm_y = 1.0f; else if (norm_y < -1.0f) norm_y = -1.0f;
-    _mouse_smooth_x[slot] = MOUSE_SMOOTHING_ALPHA * norm_x + (1.0f - MOUSE_SMOOTHING_ALPHA) * _mouse_smooth_x[slot];
-    _mouse_smooth_y[slot] = MOUSE_SMOOTHING_ALPHA * norm_y + (1.0f - MOUSE_SMOOTHING_ALPHA) * _mouse_smooth_y[slot];
-    int32_t off_x = static_cast<int32_t>(_mouse_smooth_x[slot] * static_cast<float>(mid));
-    int32_t off_y = static_cast<int32_t>(_mouse_smooth_y[slot] * static_cast<float>(mid));
-    _mouse_host_state[slot].rx = static_cast<uint16_t>(std::clamp(mid + off_x, GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32));
-    _mouse_host_state[slot].ry = static_cast<uint16_t>(std::clamp(mid + off_y, GAMEPAD_JOYSTICK_MIN_I32, GAMEPAD_JOYSTICK_MAX_I32));
+    _mouse_delta_acc_x[slot] += static_cast<int32_t>(x);
+    _mouse_delta_acc_y[slot] += static_cast<int32_t>(y);
+    _mouse_has_new_delta[slot] = true;
   }
 }

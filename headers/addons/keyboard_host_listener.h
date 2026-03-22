@@ -86,6 +86,9 @@ private:
     int32_t _mouse_accumulator_ry[2];
     float _mouse_smooth_x[2];
     float _mouse_smooth_y[2];
+    int32_t _mouse_delta_acc_x[2];
+    int32_t _mouse_delta_acc_y[2];
+    bool _mouse_has_new_delta[2];
     uint16_t mouseLeftMapping;
     uint16_t mouseMiddleMapping;
     uint16_t mouseRightMapping;
