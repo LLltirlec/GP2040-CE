@@ -89,6 +89,7 @@ void KeyboardHostListener::setup() {
     _keyboard_instance[i] = 0;
     _mouse_dev_addr[i] = DEV_ADDR_NONE;
     _mouse_instance[i] = 0;
+    _mouse_prepends_report_id[i] = false;
     _keyboard_host_state[i].dpad = 0;
     _keyboard_host_state[i].buttons = 0;
     _keyboard_host_state[i].lx = joystickMid;
@@ -286,6 +287,17 @@ void KeyboardHostListener::mount(uint8_t dev_addr, uint8_t instance, uint8_t con
         uint8_t slot = _mouse_slot_count++;
         _mouse_dev_addr[slot] = dev_addr;
         _mouse_instance[slot] = instance;
+        _mouse_prepends_report_id[slot] = false;
+        if (desc_report != nullptr && desc_len > 0) {
+            tuh_hid_report_info_t infos[16];
+            uint8_t report_count = tuh_hid_parse_report_descriptor(infos, TU_ARRAY_SIZE(infos), desc_report, desc_len);
+            for (uint8_t ri = 0; ri < report_count; ri++) {
+                if (infos[ri].usage_page == HID_USAGE_PAGE_DESKTOP && infos[ri].usage == HID_USAGE_DESKTOP_MOUSE) {
+                    _mouse_prepends_report_id[slot] = (infos[ri].report_id != 0);
+                    break;
+                }
+            }
+        }
     }
 }
 
@@ -311,6 +323,7 @@ void KeyboardHostListener::unmount(uint8_t dev_addr) {
             if (i < _mouse_slot_count - 1) {
                 _mouse_dev_addr[i] = _mouse_dev_addr[_mouse_slot_count - 1];
                 _mouse_instance[i] = _mouse_instance[_mouse_slot_count - 1];
+                _mouse_prepends_report_id[i] = _mouse_prepends_report_id[_mouse_slot_count - 1];
                 _mouse_host_state[i] = _mouse_host_state[_mouse_slot_count - 1];
                 _mouse_dev_addr[_mouse_slot_count - 1] = DEV_ADDR_NONE;
             }
@@ -470,9 +483,17 @@ void KeyboardHostListener::process_mouse_report(uint8_t slot, uint8_t const * re
   // HID report may include report_id as first byte (composite device). Boot mouse = 4 bytes (no ID).
   // Xiaomi silent mouse (Linux mi_silent_mouse_rdesc_fixed): Report ID 3, then buttons, X, Y, wheel
   // in the descriptor; some units send bytes as buttons,X,wheel,Y — use Y_AFTER_WHEEL in that case.
-  if (len < 3) return;
-  uint8_t const * data = (len >= 5) ? (report + 1) : report;
-  uint8_t data_len = (len >= 5) ? (len - 1) : len;
+  // Many hosts (e.g. Android DeX) use 4-byte reports: report ID + buttons + X + Y (no wheel); the old
+  // (len >= 5) rule only skipped the ID for 5+ byte reports, so movement leaked into the "buttons"
+  // byte (bit 2 = right click → often mapped to R1/RB).
+  bool const skip_report_id = _mouse_prepends_report_id[slot] || (len >= 5);
+  uint8_t const *data = report;
+  uint16_t data_len = len;
+  if (skip_report_id && len >= 2) {
+    data = report + 1;
+    data_len = static_cast<uint16_t>(len - 1U);
+  }
+  if (data_len < 3) return;
   uint8_t buttons = data[0];
   int8_t x;
   int8_t y;

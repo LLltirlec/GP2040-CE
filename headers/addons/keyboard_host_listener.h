@@ -78,6 +78,8 @@ private:
     uint8_t _mouse_dev_addr[2];
     uint8_t _mouse_instance[2];
     uint8_t _mouse_slot_count;
+    /** From HID report descriptor: input reports prepend a report ID byte (common on composite devices). */
+    bool _mouse_prepends_report_id[2];
     GamepadState _mouse_host_state[2];
     /** int32 accumulators for mouse stick axes so both X and Y work when reports may be split */
     int32_t _mouse_accumulator_lx[2];
