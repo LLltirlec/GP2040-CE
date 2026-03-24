@@ -86,13 +86,10 @@ private:
     int32_t _mouse_accumulator_ly[2];
     int32_t _mouse_accumulator_rx[2];
     int32_t _mouse_accumulator_ry[2];
-    float _mouse_smooth_x[2];
-    float _mouse_smooth_y[2];
-    float _mouse_target_x[2];
-    float _mouse_target_y[2];
-    int32_t _mouse_delta_acc_x[2];
-    int32_t _mouse_delta_acc_y[2];
-    bool _mouse_has_new_delta[2];
+    static const int MOUSE_RING_SIZE = 8;
+    struct MouseSample { uint32_t time_ms; int16_t dx; int16_t dy; };
+    MouseSample _mouse_ring[2][MOUSE_RING_SIZE];
+    uint8_t _mouse_ring_head[2];
     uint16_t mouseLeftMapping;
     uint16_t mouseMiddleMapping;
     uint16_t mouseRightMapping;
